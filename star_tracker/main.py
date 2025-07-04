@@ -29,7 +29,7 @@ MODEL_NAME    = "eng"
 # PSM 7 for reading lines of text
 PLAYER_CONFIG = f"--psm 7 -l {MODEL_NAME}"
 # PSM 10 for single character/num recognition
-RANK_CONFIG   = f"--psm 10 -l {MODEL_NAME} -c tessedit_char_whitelist=0123456789lLiIoOsSzZ|"
+RANK_CONFIG   = f"--psm 10 -l {MODEL_NAME} -c tessedit_char_whitelist=0123456789lLIoOsSzZ|"
 
 # Set the path to the Tesseract executable
 if not TESS_EXE:
@@ -109,7 +109,7 @@ def main() -> None:
 
             col_menu_max_avg_TH = sample_image(menu, "max, absolute, average, by col", None, eps=0.001)*0.99
 
-            row_menu_min_TH = sample_image(menu, "max, absolute, minimum, by row", None, eps=0.001) * 0.97
+            row_menu_min_TH = sample_image(menu, "max, absolute, minimum, by row", None, eps=0.001) * 0.9
 
             # Scan from top, past the headers to get to the top of the first line, leave the whitespace following the last line
             headerEnd = measure_image(menu[PX_MARGIN:,:], row_menu_min_TH, behavior="absolute threshold, minimum, by row, first fall, next, fall")[1]
@@ -131,22 +131,25 @@ def main() -> None:
             # Adaptive thresholding counts the unique jumps in d/dx (avg) which demarcate the explicit columns
             AL_global_max_min = sample_image(attackLines[:, 15:-15], "max, absolute, minimum, by col", None, eps=0.001)*0.99
             if debug: print(f"AL_global_max_min: {AL_global_max_min}")
-            line_data_sep_TH = sample_image(attackLines[:, 15:-15], "max, relative, average, by col", None, eps=0.0005)*0.99
+            line_data_sep_TH = sample_image(attackLines[:, 15:-15], "max, relative, average, by col", None, eps=0.005)*0.95
             if debug: print(f"line_data_sep_TH: {line_data_sep_TH}")
+            AL_min_dx = sample_image(attackLines[:, 15:-15], "max, relative, minimum, by col", None, eps=0.001)*0.98
 
+
+            _, number_begin = measure_image(attackLines[:, :], AL_min_dx, behavior="relative threshold, minimum, by col, from start, next, fall")
             # Rank begins at 0 and ends at first explicit column
-            _, rankEnd  = measure_image(attackLines, line_data_sep_TH, behavior="relative threshold, average, by col, first fall, next, rise")
-            rankCol = dataColumn(rankEnd)
+            _, rankEnd  = measure_image(attackLines[:, number_begin:], AL_global_max_min, behavior="absolute threshold, minimum, by col, first fall, next, fall")
+            rankCol = dataColumn(rankEnd + number_begin)
 
-            if debug: print(f"rankEnd: {rankEnd}, line_data_sep_TH: {line_data_sep_TH}")
+            if debug: print(f"rankEnd: {rankEnd}, line_data_sep_TH: {AL_min_dx}")
             # Level ends at the second explicit column
-            _, levelEndAvg = measure_image(attackLines[:, rankCol.end:], BLACK_TH, behavior="absolute threshold, minimum, by col, first fall, next, fall")
-            levelCol = dataColumn(levelEndAvg)
+            _, levelEndAvg = measure_image(attackLines[:, rankCol.end + PX_MARGIN:], AL_min_dx, behavior="absolute threshold, minimum, by col, first rise, next, fall")
+            levelCol = dataColumn(levelEndAvg + PX_MARGIN)
 
             # When player names bleed over the explicit level end column, safer to use presence of black to determine player beginning
             if debug: print(f"levelCol.end: {levelCol.end}")
             # Player ends at the third explicit column
-            _, playerEnd = measure_image(attackLines[:, levelCol.end + PLAYER_NAME_TOL:], line_data_sep_TH, behavior="relative threshold, average, by col, from start, next, fall")
+            _, playerEnd = measure_image(attackLines[:, levelCol.end + PLAYER_NAME_TOL:], line_data_sep_TH, behavior="relative threshold, average, by col, from start, next, rise")
             playerCol = dataColumn(playerEnd + PLAYER_NAME_TOL)
 
             if debug: print(f"playerCol.end: {playerCol.end}")
@@ -184,8 +187,8 @@ def main() -> None:
             percentageBegin += enemyCol.end
 
             # First star occurs with presence of white, scan ahead to the first star
-            _, firstStar = measure_image(attackLines[:, percentageBegin:], WHITE_TH, behavior="absolute threshold, maximum, by col, from start, next, rise")
-            firstStar += percentageBegin
+            _, firstStar = measure_image(attackLines[:, percentageBegin + 30:], WHITE_TH, behavior="absolute threshold, maximum, by col, from start, next, rise")
+            firstStar += percentageBegin + 30
 
             if debug: print(f"percentage begin: {percentageBegin}, first star: {firstStar}")
 
@@ -229,23 +232,27 @@ def main() -> None:
             abs_pos, lineTop, nextLineTop, lineHeight, line_idx = 0, 0, 0, 0, 0
             # ------------------------------------------------------------ Process each line in the menu ------------------------------------------------------------
             # Adaptive thresholding for white between lines
-            new_line_TH = sample_image(attackLines, "max, absolute, minimum, by row", None, eps=0.01) * 0.97
+            new_line_TH = sample_image(attackLines, "max, absolute, minimum, by row", None, eps=0.01) * 0.96
             if debug: print(f"new_line_TH: {new_line_TH}")
-
+            last_line_h = None
             while True:
                 if debug: print(f"nextLineTop: {nextLineTop}, lineHeight: {lineHeight}, menuHeight: {menuHeight}")
                 abs_pos += nextLineTop
 
                 lineTop = abs_pos
-                lineBottom, nextLineTop = measure_image(croppedL[lineTop + PX_MARGIN:, :], new_line_TH, behavior="absolute threshold, minimum, by row, first rise, next, fall")
+                rel_bottom, nextLineTop = measure_image(croppedL[lineTop + PX_MARGIN:, :], new_line_TH, behavior="absolute threshold, minimum, by row, first rise, next, fall")
 
                 if nextLineTop == 0:
                     lineBottom = linesHeight
                 else:
-                    lineBottom += lineTop + PX_MARGIN
-                    nextLineTop += PX_MARGIN  # convert relative → absolute
+                    lineBottom = lineTop + PX_MARGIN + rel_bottom
+                    nextLineTop = PX_MARGIN + nextLineTop  # convert relative → absolute
+                if last_line_h:                      # skip the very first pass
+                    lineBottom = max(lineBottom, lineTop + last_line_h)
 
-                lineHeight = lineBottom - lineTop
+                lineHeight   = lineBottom - lineTop  # height for THIS loop
+                last_line_h  = max(last_line_h or 0, lineHeight)   # remember the tallest so far
+
                 if debug: print(f"loop {line_idx + k}: line Top: {lineTop}, line Bottom: {lineBottom}")
 
                 # ---------------------------------------------------- Rank Processing ----------------------------------------------------
@@ -259,7 +266,7 @@ def main() -> None:
                 rank = pytesseract.image_to_string(rank_preproc, config=RANK_CONFIG)
 
                 if debug: 
-                    print(f"text from player screenshot: {rank}")
+                    print(f"text from rank screenshot: {rank}")
                     debug_image(debug_name, line_idx + k, rank_preproc, "rank_preproc", OUT_DIR)
                     debug_image(debug_name, line_idx + k, rankCrop, "rank_crop", OUT_DIR)
                 rank = auto_correct_num(rank)
@@ -295,14 +302,15 @@ def main() -> None:
                     
                     # Preprocess original image to read cropped sections using different configurations
                     attackPreproc = preprocess_line(attackLine[attackNum - 1], line=True)
+                    if debug:
+                        debug_image(debug_name, line_idx + k, attackCrop[:, enemyRankBegin:enemyNameBegin], f"attack{attackNum}_rank_crop", OUT_DIR)
+                        debug_image(debug_name, line_idx + k, attackCrop[:, enemyNameBegin:], f"attack{attackNum}_name_crop", OUT_DIR)
                     enemy_rank = auto_correct_num(pytesseract.image_to_string(attackPreproc[:, enemyRankBegin:enemyNameBegin], config=RANK_CONFIG))
                     enemy = auto_correct_player(pytesseract.image_to_string(attackPreproc[:, enemyNameBegin:], config=PLAYER_CONFIG), enemy=True, enemies=enemies, players=players)
 
                     if debug:
                         print(f"text_menu_th: {text_menu_th}, enemy_rank: {enemy_rank}, enemy: {enemy}, enemyRankBegin {enemyRankBegin}, enemyNameBegin: {enemyNameBegin}")
                         debug_oscilloscope(attackCrop, f"{debug_name}_{line_idx + k}_attack{attackNum}_separating_rank_and_name", None, OUT_DIR)
-                        debug_image(debug_name, line_idx + k, attackCrop[:, enemyRankBegin:enemyNameBegin], f"attack{attackNum}_rank_crop", OUT_DIR)
-                        debug_image(debug_name, line_idx + k, attackCrop[:, enemyNameBegin:], f"attack{attackNum}_name_crop", OUT_DIR)
 
                     if enemy is None:
                         return(attackData(None, "No attack", "___"))

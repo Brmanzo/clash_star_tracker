@@ -103,6 +103,7 @@ def auto_correct_num(num_OCR: str) -> int:
 
     num_clean = re.sub(fr'[^{DIGIT_GLYPHS}]', '', num_OCR)
     digits = num_clean.translate(TO_DIGIT).strip(".")
+    # if len(digits) > 1 and digits[-1] == 'i': digits = digits[:-1]  # remove trailing 'i' if present
     if not digits:
         return None          # or raise a clean exception
     return int(digits)
@@ -134,6 +135,7 @@ def score_from_stars(starsCentered: np.ndarray)-> str:
     # min and max lightness do not change if old star, so if dx is zero, return old star
     no_star_TH = sample_image(starsCentered, "avg, relative, maximum, by col", None, eps=0.01)*0.99
 
+    print(f"no_star_TH: {no_star_TH}")
     _, centeredWidth = starsCentered.shape[:2]
     LMin, LMax = [], []
 
@@ -145,7 +147,7 @@ def score_from_stars(starsCentered: np.ndarray)-> str:
     Max = max(LMax)
 
     # If 0.0, black present, and only new stars have black outline
-    if Max == 1.00:           return "★"
+    if Max >= 0.97:           return "★"
     else:
-        if no_star_TH == 0.0: return "_"
-        else:                 return "☆"
+        if abs(no_star_TH) >= 0.02: return "☆"
+        else:                 return "_"
