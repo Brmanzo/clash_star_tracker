@@ -135,7 +135,7 @@ def measure_image(src: np.ndarray, bgThresh: float, behavior: str)-> Tuple[int, 
 
     return m1, m2
 
-def sample_image(src: np.ndarray, behavior: str, globalTH: float, eps: float) -> float:
+def sample_image(src: np.ndarray, behavior: str, globalTH: float|None, eps: float) -> float:
     '''Takes an image as input and a behavior command to sample the lightness of the image,
     given the requested statistic. A global threshold can be specified to help filter and 
     find a local maximum from a smaller window of the image. Epsilon is used to set the confidence
@@ -199,7 +199,7 @@ def sample_image(src: np.ndarray, behavior: str, globalTH: float, eps: float) ->
         dataDx.append(curr - prev)
         prev = curr
 
-    def first_repeat(data:List, globalTH: float) -> float:
+    def first_repeat(data:List, globalTH: float|None) -> float:
         '''Finds the first repeating value, to be used as a filtering threshold '''
         i = 0
         if globalTH is not None:
@@ -238,7 +238,7 @@ def count_peaks(src: np.ndarray, thresh: float) -> int:
         x += next_x
     return peaks
 
-def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataColumn], out_dir: str, axis: str) -> None:
+def debug_oscilloscope(s: currentState, dbgL: np.ndarray, graphName: str, plot_data: List[dataColumn]|None, axis: str) -> None:
     '''Oscilloscope-like function to plot lightness statistics over a given image for use in debugging'''
     
     lAvgData, lMinData, lMaxData = [], [], []
@@ -259,7 +259,7 @@ def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataCo
 
     # Display the image on the primary axes (ax_image)
     h, w, _ = background_img.shape
-    ax_image.imshow(background_img, aspect='auto', extent=[0, w, h, 0])
+    ax_image.imshow(background_img, aspect='auto', extent=(0, w, h, 0))
     ax_image.set_ylabel('Image Pixels (Height)', color='gray')
     ax_data = ax_image.twinx()
 
@@ -276,7 +276,7 @@ def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataCo
     plt.title("Lightness Data Plotted Over Image Slice")
     plt.grid(True, linestyle='--', alpha=0.5)
 
-    out_path = str(out_dir /f"{debug_name}_lightness.png")
+    out_path = str(s.OUT_DIR /f"{graphName}_lightness.png")
     plt.savefig(out_path)
     plt.close() # Close the plot to free up memory
     print(f"Saved combined plot to '{out_path}'")
@@ -286,7 +286,7 @@ def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataCo
         for datum in plot_data:
             cv2.rectangle(dbgL, (datum.begin , 0), (datum.end, h - 1), (0, 0, 0), 2)
 
-    out_ss_src = str(out_dir /f"{debug_name}_src_ss_.png")
+    out_ss_src = str(s.OUT_DIR /f"{graphName}_src_ss_.png")
     print(f"Saved original ss rect →", out_ss_src)
     cv2.imwrite(out_ss_src, dbgL)
 
@@ -296,6 +296,9 @@ def debug_image(s: currentState, image_to_save: np.ndarray, img_name: str) -> No
         print(f"Debug image {img_name} is None, skipping save.")
         return
     '''Outputs an image given a filename and current iterator value. '''
+    if s.debug_name is None:
+        print("Error: debug_name is not set in currentState. Cannot save debug image.")
+        return
     out = str(s.OUT_DIR /f"{s.debug_name[0]}_{img_name}_{s.fileNum}.png")
     print(f"Saved preprocessed {img_name} →", out)
     cv2.imwrite(out, image_to_save)

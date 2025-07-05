@@ -4,19 +4,18 @@ from pathlib import Path
 from collections import OrderedDict
 from typing import Tuple, Dict
 
-def load_history(path) -> Tuple[list[str], OrderedDict]:
+def load_history(path) -> OrderedDict:
     '''Load csv file of previous war data'''
     table = OrderedDict()
     with open(path, newline='', encoding='utf-8') as f:
         rdr = csv.reader(f, skipinitialspace=True)
-        header = next(rdr, None)
         for row in rdr:
             if not row:
                 continue
             player = row[0].strip()
             scores = [c.strip() for c in row[1:-1]]
             table[player] = scores
-    return header, table   
+    return table   
 
 def merge_new_war(table, new_scores):
     '''Calculate new column and total score column'''

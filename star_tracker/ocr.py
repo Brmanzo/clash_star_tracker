@@ -1,12 +1,12 @@
 # star_tracker/ocr.py
 
-import cv2, re
+import cv2, re, sys
 import numpy as np
 from fuzzywuzzy import process, utils
 from typing import List
 
 from .preprocessing import sample_image
-
+from .data_structures import currentState
 
 def preprocess_line(img_bgr: np.ndarray, line:bool) -> np.ndarray:
     """Samples background of input image and returns a single channel preprocessed image
@@ -15,8 +15,8 @@ def preprocess_line(img_bgr: np.ndarray, line:bool) -> np.ndarray:
     Also returns the sampled highest minimum for adaptive thresholding. """
 
     BLOB_TH = 0.06     #  wipe blobs > 6 % of crop area
-    OUTLINE_UPPER_BGR = (150, 150, 150)
-    OUTLINE_LOWER_BGR = (0, 0, 0)
+    OUTLINE_UPPER_BGR = np.array([150, 150, 150])
+    OUTLINE_LOWER_BGR = np.array([0, 0, 0])
 
     # Thresholds for what lightness is considered the background for all background lightnesses
     LIGHT_ROW_TH = - 0.01 * 255
@@ -57,11 +57,11 @@ def preprocess_line(img_bgr: np.ndarray, line:bool) -> np.ndarray:
 
     # combined barrier for flood-fill
     barrier  = cv2.bitwise_or(outline, dark_bg)
-    bg_fill  = barrier.copy()
+    bg_fill  = barrier.copy().astype(np.uint8)
 
     # flood border
-    flood_b  = np.zeros((h + 2, w + 2), np.uint8)
-    cv2.floodFill(bg_fill, flood_b, (0, 0), 255)
+    mask  = np.zeros((h + 2, w + 2), np.uint8)
+    cv2.floodFill(bg_fill, mask, (0, 0), (255,))
 
     # NOR → keep only bright interior
     unwanted = cv2.bitwise_or(bg_fill, outline)
@@ -71,7 +71,7 @@ def preprocess_line(img_bgr: np.ndarray, line:bool) -> np.ndarray:
     # prune huge connected blobs of dark pixels
     max_blob           = int(BLOB_TH * h * w)
     inv                = cv2.bitwise_not(glyphs)
-    num, lbl, stats, _ = cv2.connectedComponentsWithStats(inv, 8)
+    num, lbl, stats, _ = cv2.connectedComponentsWithStats(inv, connectivity=8)
     for i in range(1, num):
         if stats[i, cv2.CC_STAT_AREA] > max_blob:
             glyphs[lbl == i] = 255
@@ -82,11 +82,11 @@ def preprocess_line(img_bgr: np.ndarray, line:bool) -> np.ndarray:
     border[:, :3], border[:, -3:] = 255, 255
     ys, xs = np.where((border == 255) & (glyphs == 0))
     for y, x in zip(ys, xs):
-        cv2.floodFill(glyphs, None, (int(x), int(y)), 255)
+        cv2.floodFill(glyphs, None, (int(x), int(y)), (255,))
 
     return glyphs  # 0 = glyph ink, 255 = background
 
-def auto_correct_num(num_OCR: str) -> int:
+def auto_correct_num(num_OCR: str) -> int|None:
     '''When expecting a number but read a letter instead subsitute the character 
     for the commonly mistaken number in DIGIT_GLYPHS'''
     DIGIT_GLYPHS = "0-9lLiIoOsSzdeZWagTB|L"
@@ -107,22 +107,33 @@ def auto_correct_num(num_OCR: str) -> int:
         return None          # or raise a clean exception
     return int(digits)
 
-def auto_correct_player(player_OCR: str, confidence_threshold: int=65, enemy: bool=False, enemies: List[str]=[], players: List[str]=[]) -> str:
+def auto_correct_player(s: currentState, player_OCR: str, confidence_threshold: int=65, enemy: bool=False) -> str:
     '''Given a player name from OCR, match to an existing name from player table using fuzzy matching'''
     clean_name = utils.full_process(player_OCR)
+    if s.players is None or s.enemies is None:
+        print(f"Error: players or enemies list is None for image {s.fileNum}. Exiting.", file=sys.stderr)
+        sys.exit(1)
     if clean_name and not enemy:
-        best, score = process.extractOne(player_OCR, players)
-    elif clean_name and enemy and enemies:
-        best, score = process.extractOne(player_OCR, enemies)
+        result = process.extractOne(player_OCR, s.players)
+        if result is not None:
+            best, score = result[:2]
+        else:
+            best, score = player_OCR.strip(), 0
+    elif clean_name and enemy and s.enemies:
+        result = process.extractOne(player_OCR, s.enemies)
+        if result is not None:
+            best, score = result[:2]
+        else:
+            best, score = player_OCR.strip(), 0
     else:
         best, score = player_OCR.strip(), 0
     
     if best is None or score < confidence_threshold:
         best = player_OCR
-        if best not in players and not enemy:
-            players.append(best)
+        if best not in s.players and not enemy:
+            s.players.append(best)
         else:
-            enemies.append(best)
+            s.enemies.append(best)
     return best
 
 def score_from_stars(starsCentered: np.ndarray)-> str:
@@ -145,7 +156,7 @@ def score_from_stars(starsCentered: np.ndarray)-> str:
     Max = max(LMax)
 
     # If 0.0, black present, and only new stars have black outline
-    if Max == 1.00:           return "★"
+    if Max == 1.00:           return "☆"
     else:
         if no_star_TH == 0.0: return "_"
-        else:                 return "☆"
+        else:                 return "★"
