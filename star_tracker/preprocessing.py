@@ -4,7 +4,7 @@ import numpy as np
 from typing import Tuple, List
 from matplotlib import pyplot as plt
 
-from .data_structures import dataColumn
+from .data_structures import dataColumn, currentState
 
 def get_metrics(img_slice: np.ndarray) -> Tuple[float, float, float]:
     '''Helper to return the requested stat per slice of an image.'''
@@ -238,12 +238,13 @@ def count_peaks(src: np.ndarray, thresh: float) -> int:
         x += next_x
     return peaks
 
-def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataColumn], out_dir: str) -> None:
+def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataColumn], out_dir: str, axis: str) -> None:
     '''Oscilloscope-like function to plot lightness statistics over a given image for use in debugging'''
     
     lAvgData, lMinData, lMaxData = [], [], []
     h, w = dbgL.shape[:2]
-
+    if axis == "row":
+        dbgL = cv2.rotate(dbgL, cv2.ROTATE_90_COUNTERCLOCKWISE)
     for i in range(0, w):
         L = dbgL[:, i:i + 1]
         lAvgData.append(L.mean() / 255)
@@ -290,8 +291,11 @@ def debug_oscilloscope(dbgL: np.ndarray, debug_name: str, plot_data: List[dataCo
     cv2.imwrite(out_ss_src, dbgL)
 
 
-def debug_image(debug_name: str, i: int, img: np.ndarray, img_name: str, out_dir: str) -> None:
+def debug_image(s: currentState, image_to_save: np.ndarray, img_name: str) -> None:
+    if image_to_save is None:
+        print(f"Debug image {img_name} is None, skipping save.")
+        return
     '''Outputs an image given a filename and current iterator value. '''
-    out = str(out_dir /f"{debug_name}_{img_name}_{i}.png")
+    out = str(s.OUT_DIR /f"{s.debug_name[0]}_{img_name}_{s.fileNum}.png")
     print(f"Saved preprocessed {img_name} →", out)
-    cv2.imwrite(out, img)
+    cv2.imwrite(out, image_to_save)
