@@ -14,6 +14,7 @@ WHITE_TH          = 0.99
 
 # Scan image by row and column to find menu margins from war background (based on lightness)
 def menu_crop(s: currentState) -> np.ndarray:
+    """Crop the menu from the background image and return it as a new image: menu."""
     if s.src is None:
         raise ValueError("s.src is None. Cannot convert color.")
     s.srcL = cv2.cvtColor(np.asarray(s.src), cv2.COLOR_BGR2HLS)[:, :, 1]
@@ -62,6 +63,7 @@ def menu_crop(s: currentState) -> np.ndarray:
     return menu[headerEnd:, lineBegin:lineEnd]
 
 def measure_rank(s: currentState, threshold: float) -> None:
+    """Measure the rank column in the attack lines image."""
     if s.attackLinesL is None:
         print(f"Error: attackLines is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -76,6 +78,7 @@ def measure_rank(s: currentState, threshold: float) -> None:
     s.rankCol = rankCol
 
 def measure_level(s: currentState, threshold: float) -> None:
+    """Measure the level column in the attack lines image."""
     if s.attackLinesL is None or s.rankCol is None:
         print(f"Error: attackLinesL or rankCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -90,6 +93,7 @@ def measure_level(s: currentState, threshold: float) -> None:
     s.levelCol = levelCol
 
 def measure_player(s:currentState, threshold: float) -> None:
+    """Measure the player column in the attack lines image."""
     if s.attackLinesL is None or s.levelCol is None:
         print(f"Error: attackLinesL or levelCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -104,6 +108,7 @@ def measure_player(s:currentState, threshold: float) -> None:
     s.playerCol = playerCol
 
 def measure_enemy(s: currentState, threshold: float, global_min_TH: float) -> Tuple[float, int]:
+    """Measure the enemy column in the attack lines image."""
     if s.attackLinesL is None or s.playerCol is None:
         print(f"Error: attackLinesL or playerCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -140,6 +145,7 @@ def measure_enemy(s: currentState, threshold: float, global_min_TH: float) -> Tu
     return local_max_TH, starsColEnd
 
 def measure_percentage(s: currentState, threshold: float) -> None:
+    """Measure the percentage column in the attack lines image."""
     if s.attackLinesL is None or s.enemyCol is None:
         print(f"Error: attackLinesL or enemyCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -173,6 +179,7 @@ def measure_percentage(s: currentState, threshold: float) -> None:
     s.percentageCol = percentageCol
 
 def measure_stars(s: currentState, local_max_TH: float, starsColEnd: int) -> dataColumn|None:
+    """Measure the stars column in the attack lines image."""
     if s.attackLinesL is None or s.percentageCol is None:
         print(f"Error: attackLinesL or percentageCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -208,6 +215,7 @@ def measure_stars(s: currentState, local_max_TH: float, starsColEnd: int) -> dat
 
 
 def measure_data_columns(s: currentState) -> None:
+    """Measure the data columns in the attack lines image."""
     if s.attackLines is None:
         raise ValueError("s.attackLines is None. Cannot convert color.")
     s.attackLinesL = cv2.cvtColor(np.asarray(s.attackLines), cv2.COLOR_BGR2HLS)[:, :, 1]

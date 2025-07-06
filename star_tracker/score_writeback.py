@@ -2,7 +2,8 @@
 import csv
 from pathlib import Path
 from collections import OrderedDict
-from typing import Tuple, Dict
+from typing import Dict
+
 
 def load_history(path) -> OrderedDict:
     '''Load csv file of previous war data'''
@@ -54,20 +55,8 @@ def write_history(path, table, totals) -> None:
         wr.writerow(header)
         for player, row in ordered:
             wr.writerow([player] + row + [totals[player]])
-    print("Written to", path)
-
-def print_leaderboard(table, totals, width_name=22) -> None:
-    '''Print "Rank  Name  Total" to the terminal.'''
-    ordered = sorted(
-        table.items(),
-        key=lambda kv: (-totals[kv[0]], kv[0])     # same sort as CSV
-    )
-
-    print("\n=== Current Leaderboard ===")
-    for i, (player, _) in enumerate(ordered, start=1):
-        # discord_name = display_name(player)
-        print(f"{i:>2}. {player.ljust(width_name)} {totals[player]}")
-
+    print("Written to", path)   
+        
 def load_player_list(path: str | Path) -> list[str]:
     """Read one name per line, ignore blank lines and trim whitespace."""
     p = Path(path).expanduser()

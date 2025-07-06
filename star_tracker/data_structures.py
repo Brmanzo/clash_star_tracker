@@ -2,7 +2,7 @@
 import json, os, shutil, sys
 from pathlib import Path
 from typing import List, Optional
-from .score_writeback import load_player_list
+import FreeSimpleGUI as sg
 import numpy as np
 
 class dataColumn:
@@ -85,6 +85,7 @@ class playerData:
     
 
 class currentState:
+    """Holds the current state of the application, including settings, data structures, and iterators."""
     MAX_WAR_PLAYERS = 50
     HOME = Path.home()
     PLAYERS_FILE = HOME / "Desktop" / "Clash" / "OperatingData" / "players.txt"
@@ -104,6 +105,8 @@ class currentState:
     RANK_CONFIG   = f"--psm 10 -l {MODEL_NAME} -c tessedit_char_whitelist=0123456789lLiIoOsSzZ|"
 
     SETTINGS_FILE = PROJECT_ROOT / "clash_star_tracker_settings.json"
+    HISTORY_FILE = PROJECT_ROOT / "player_history.csv"
+
     if not SETTINGS_FILE.exists():
         # Create default settings file if it doesn't exist
         with open(SETTINGS_FILE, 'w') as f:
@@ -111,6 +114,9 @@ class currentState:
 
     def __init__(self):
         """Initialize the current state with default values."""
+        self.window: sg.Window|None = None
+        self.settings: dict = {}
+        
         self.players = []
         self.multiAccounters = None
         self.enemies = []
@@ -119,6 +125,7 @@ class currentState:
         self.enemiesRanks = {}
         self.war_players:List[Optional[playerData]] = [None] * self.MAX_WAR_PLAYERS
         self.new_scores: dict[str, int] = {}
+        self.editable_lines: list[str] = []
 
         self.rankCol: dataColumn|None = None
         self.levelCol: dataColumn|None = None

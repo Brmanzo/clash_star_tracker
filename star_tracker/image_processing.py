@@ -16,6 +16,7 @@ RANK_CONFIG   = f"--psm 10 -l {MODEL_NAME} -c tessedit_char_whitelist=0123456789
 BLACK_TH = 0.01
 
 def process_rank(s: currentState) -> int|None:
+    """Process the rank from the attack lines and return integer rank."""
     if s.attackLines is None or s.rankCol is None:
         print(f"Error: attackLines or rankCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -34,6 +35,7 @@ def process_rank(s: currentState) -> int|None:
     return(rank)
 
 def process_player(s: currentState) -> str:
+    """Process the player name from the attack lines and return string of player name."""
     if s.attackLines is None or s.playerCol is None:
         print(f"Error: attackLines or playerCol is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -73,22 +75,28 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
     
     # Preprocess original image to read cropped sections using different configurations
     attackPreproc = preprocess_line(attackLine[attackNum - 1], line=True)
-    enemyRankTxt  = pytesseract.image_to_string(attackPreproc[:, enemyRankBegin:enemyNameBegin], config=RANK_CONFIG)
-    enemy_rank = auto_correct_num(enemyRankTxt)
-    if enemy_rank is None:
-        print(f"Warning: Could not read enemy rank from image {s.fileNum}. Text: {enemyRankTxt}. Continuing.", file=sys.stderr)
-        debug_image(s, attackPreproc[:, enemyRankBegin:enemyNameBegin], "attack_rank_crop_error")
-
-    enemyNameTxt = pytesseract.image_to_string(attackPreproc[:, enemyNameBegin:], config=PLAYER_CONFIG)
-    enemy = auto_correct_player(s, enemyNameTxt, enemy=True)
-    if enemy is None:
+    debug_image(s, attackPreproc, f"attack{attackNum}_preproc")
+    # Sample preprocessed image to see if completely white
+    avgL_Preproc = sample_image(attackPreproc, "avg, absolute, average, by row", None, eps=0.01)
+    # If white, attack line is empty -> missed attack
+    if avgL_Preproc == 1.0:
+        print(f"Warning: No attack data found in image {s.fileNum}. Average Lightness: {avgL_Preproc}. Continuing.", file=sys.stderr)
         return(attackData(None, "No attack", "___"))
-        # If we've seen this enemy before, use the stored rank
     else:
+        # Pytesseract does its best to read the enemy rank
+        enemyRankTxt  = pytesseract.image_to_string(attackPreproc[:, enemyRankBegin:enemyNameBegin], config=RANK_CONFIG)
+        enemy_rank = auto_correct_num(enemyRankTxt)
+        if enemy_rank is None:
+            print(f"Warning: Could not read enemy rank from image {s.fileNum}. Text: {enemyRankTxt}. Continuing.", file=sys.stderr)
+            debug_image(s, attackPreproc[:, enemyRankBegin:enemyNameBegin], "attack_rank_crop_error")
+        # Pytesseract reads the enemy name
+        enemyNameTxt = pytesseract.image_to_string(attackPreproc[:, enemyNameBegin:], config=PLAYER_CONFIG)
+        enemy = auto_correct_player(s, enemyNameTxt, enemy=True)
         if enemy_rank is None and enemy is not None:
+            # If we couldn't read the enemy rank, but we have the name, assign it the cannonical rank
             if enemy in s.enemiesSeen:
                 enemy_rank = s.enemiesRanks.get(enemy, None)
-                # If we haven't seen this enemy before, assume greatest unseen rank
+            # If we haven't seen this enemy before, assume greatest unseen rank
             else:
                 ranks = set(s.enemiesRanks.values())
                 top = max(ranks) if ranks else 0
@@ -123,7 +131,7 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
 
 
 def line_to_player(s: currentState) -> playerData:
-
+    """Process a single line of attack data and return a playerData object."""
     rank = process_rank(s)
     player = process_player(s)
 
@@ -133,6 +141,7 @@ def line_to_player(s: currentState) -> playerData:
     return playerData(rank, player, [attack1, attack2])
 
 def process_player_data(s: currentState, curr_player: playerData) -> None:
+    '''Process each playerData object and update state accordingly.'''
     # If multiaccount detected with identical name, append number to name
     base_name = curr_player.name
     if s.multiAccounters is None:
@@ -173,7 +182,7 @@ def process_player_data(s: currentState, curr_player: playerData) -> None:
 
 
 def image_to_player_data(s: currentState) -> None:
-    """Process the attack lines image to extract player data."""
+    '''Process the attack lines image to extract player data.'''
     if s.attackLines is None or s.attackLinesL is None:
         print(f"Error: attackLines or attackLinesL is None for image {s.fileNum}. Exiting.", file=sys.stderr)
         sys.exit(1)

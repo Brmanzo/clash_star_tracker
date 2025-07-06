@@ -2,7 +2,6 @@
 # main.py
 # ------------------------------------------------------------
 import pytesseract, sys
-from pathlib import Path
 
 from .data_structures import currentState
 from .gui import run_gui
@@ -14,7 +13,6 @@ state = currentState()  # Initialize the current state
 if not state.TESS_EXE:
     sys.exit("Tesseract executable not found. Please install Tesseract and ensure it is in your PATH.")
 pytesseract.pytesseract.tesseract_cmd = state.TESS_EXE
-
 
 def main() -> None:
     run_gui(state)
