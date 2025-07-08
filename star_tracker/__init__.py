@@ -14,7 +14,7 @@ from .data_structures import (
     attackData,
     playerData,
 )
-from .main import main  # the big “driver” function you already have
+from .main import main
 
 __all__ = [
     "dataColumn",

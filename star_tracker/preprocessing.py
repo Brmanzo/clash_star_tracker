@@ -1,6 +1,5 @@
 # star_tracker/preprocessing.py
-import cv2
-import numpy as np
+import cv2, numpy as np
 from typing import Tuple, List
 from matplotlib import pyplot as plt
 
@@ -185,7 +184,6 @@ def sample_image(src: np.ndarray, behavior: str, globalTH: float|None, eps: floa
     initial_metrics = get_metrics(src[0:1, :] if axis == "by row" else src[:, 0:1])
     prev = initial_metrics[0] if stat == "average" else (initial_metrics[1] if stat == "minimum" else initial_metrics[2])
 
-
     # Iterate through axis of image taking min, max, and avg for absolute threshold
     # As well as derivatives of each for relative thresholds
     for i in range(0, end):
@@ -241,10 +239,15 @@ def count_peaks(src: np.ndarray, thresh: float) -> int:
 def debug_oscilloscope(s: currentState, dbgL: np.ndarray, graphName: str, plot_data: List[dataColumn]|None, axis: str) -> None:
     '''Oscilloscope-like function to plot lightness statistics over a given image for use in debugging'''
     
-    lAvgData, lMinData, lMaxData = [], [], []
-    h, w = dbgL.shape[:2]
     if axis == "row":
         dbgL = cv2.rotate(dbgL, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    h, w = dbgL.shape[:2]
+    if w == 0:
+        print(f"Warning: Debug oscilloscope received an empty image for {graphName}.")
+        return
+    
+    lAvgData, lMinData, lMaxData = [], [], []
     for i in range(0, w):
         L = dbgL[:, i:i + 1]
         lAvgData.append(L.mean() / 255)

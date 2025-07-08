@@ -1,9 +1,10 @@
 # File: star_tracker/gui.py    
-import cv2, json, os, sys, threading
-import FreeSimpleGUI as sg
+import cv2, FreeSimpleGUI as sg, json, os, pathlib, textwrap, threading, sys, win32com.client
 from typing import Optional, Tuple
 from pathlib import Path
 from collections import OrderedDict
+
+from star_tracker.presets import processingPresets
 
 from .data_structures import currentState, dataColumn
 from .score_writeback import load_player_list
@@ -11,12 +12,13 @@ from .image_measurement import menu_crop, measure_data_columns
 from .image_processing import image_to_player_data
 from .score_writeback import load_history, merge_new_war, rebuild_totals, write_history
 
-def load_settings(s: currentState) -> dict:
+
+def load_settings(filepath: Path, type: str) -> dict:
     """Loads settings from the JSON file. Returns an empty dict if not found."""
     try:
-        with open(s.SETTINGS_FILE, 'r') as f:
+        with open(filepath, 'r') as f:
             settings = json.load(f)
-            print("Loaded previous settings.")
+            print(f"Loaded {type}.")
             return settings
     except (FileNotFoundError, json.JSONDecodeError):
         # If file doesn't exist or is empty/corrupt, return defaults
@@ -49,6 +51,63 @@ def print_leaderboard(s: currentState, table: dict, totals: dict, width_name:int
         total_score = totals[player]
         line = f"{i:>2}. {player:<{width_name}} Total Score: {total_score}"
         print_to_gui(s, line)
+
+def write_batch(s: currentState) -> None:
+    """
+    Checks for a .bat file to run the Python module and creates it if not found.
+    """
+    # Use pathlib to create a path to the .bat file on the user's Desktop
+
+    # Only create the file if it doesn't already exist
+    if not s.BATCH_FILE.exists():
+        if sg.popup_yes_no("Create desktop shortcut?"):
+            print(f"First-time setup: Creating run script at {s.BATCH_FILE}")
+
+            conda_activate_path = Path(s.VENV_PYTHON).parent / "Scripts" / "activate.bat"
+
+            # The content of the .bat file
+            bat_content = f"""
+                @echo off
+                TITLE Clash Star Tracker
+                ECHO Activating environment and starting application...
+
+                :: Change to the project directory
+                cd /d "{s.PROJECT_ROOT}"
+
+                :: Call the anaconda activation script
+                CALL "{conda_activate_path}"
+
+                :: Run the python module
+                "{s.VENV_PYTHON}" -m star_tracker
+
+                ECHO Application closed.
+                PAUSE
+                """
+            
+            # Write the content to the .bat file
+        try:
+            with open(s.BATCH_FILE, "w") as f:
+                f.write(bat_content)
+        except Exception as e:
+            print(f"Error: Could not create the run script. Please create it manually. Details: {e}")
+
+def create_shortcut(s: currentState) -> None:
+    desktop = pathlib.Path(os.path.join(
+        os.environ['USERPROFILE'], 'Desktop'))
+    lnk_path = desktop / f"{s.SHORTCUT_NAME}.lnk"
+
+    shell = win32com.client.Dispatch('WScript.Shell')
+    shortcut = shell.CreateShortcut(str(lnk_path))
+    
+    shortcut.TargetPath       = str(s.BATCH_FILE)
+    shortcut.WorkingDirectory = str(s.PROJECT_ROOT)
+    shortcut.Arguments        = ""
+    if s.ICO_FILE.exists():
+        shortcut.IconLocation = str(s.ICO_FILE)  # ,0  (first icon) implicit
+    
+    shortcut.Save()
+    print(f"Shortcut created/updated → {lnk_path}")
+
 
 def run_backend_processing(s: currentState) -> None:
     '''Main processing pipeline to be threaded with GUI process'''
@@ -83,7 +142,6 @@ def run_backend_processing(s: currentState) -> None:
         print_to_gui(s, "\n--- Final War Data with Scores ---")
         s.new_scores = {}
         s.editable_lines = []
-        s.editable_lines.append("Rank,Player Name,Final Score")
 
         for player in s.war_players:
             if player and player.name:
@@ -122,13 +180,93 @@ def run_backend_processing(s: currentState) -> None:
         if run_button is not None:
             run_button.update(disabled=False)
 
+def show_advanced_settings_window(settings_path: Path):
+    """
+    Opens a window to edit settings, now with a proper event loop
+    and support for list values.
+    """
+    try:
+        with open(settings_path, 'r', encoding='utf-8') as f:
+            settings = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        sg.popup_error(f"Could not load settings file from: {settings_path}")
+        return
+
+    # --- Dynamically create the layout ---
+    settings_layout = []
+    for key, value in settings.items():
+        # THE FIX for lists: Convert list to a comma-separated string for display
+        display_value = ', '.join(map(str, value)) if isinstance(value, list) else str(value)
+        
+        row = [
+            sg.Text(key, size=(40, 1)),
+            sg.Input(default_text=display_value, key=key, size=(20, 1))
+        ]
+        settings_layout.append(row)
+    
+    layout = [
+        [sg.Text("Edit Advanced Settings", font=("Helvetica", 16))],
+        [sg.Column(settings_layout, size=(550, 300), scrollable=True, vertical_scroll_only=True)],
+        [sg.Button("Save"), sg.Button("Cancel")]
+    ]
+
+    window = sg.Window("Advanced Settings", layout, modal=True)
+
+    # --- THE FIX: Add a proper event loop for the popup window ---
+    while True:
+        read_result: Optional[Tuple[str, dict]] = window.read()
+        if read_result is None or read_result[0] == sg.WIN_CLOSED:
+            break
+        event, values = read_result
+
+        if event == sg.WIN_CLOSED or event == 'Cancel':
+            break  # Exit the popup without saving
+
+        if event == "Save":
+            updated_settings = {}
+            error_found = False
+            for key, string_value in values.items():
+                if not isinstance(string_value, str): continue
+
+                # THE FIX for lists: Convert the edited string back to a list of numbers
+                if ',' in string_value:
+                    try:
+                        # This turns "50, 20, 60, 30" into [50, 20, 60, 30]
+                        updated_settings[key] = [int(x.strip()) for x in string_value.split(',')]
+                    except ValueError:
+                        sg.popup_error(f"Invalid format for '{key}'. Please use comma-separated integers.")
+                        error_found = True
+                        break 
+                else:
+                    # Handle regular float values
+                    try:
+                        updated_settings[key] = float(string_value)
+                    except ValueError:
+                        sg.popup_error(f"Invalid number format for '{key}'.")
+                        error_found = True
+                        break
+            
+            if not error_found:
+                try:
+                    with open(settings_path, 'w', encoding='utf-8') as f:
+                        json.dump(updated_settings, f, indent=4)
+                    sg.popup("Settings saved successfully!")
+                    break # Exit the popup after a successful save
+                except Exception as e:
+                    sg.popup_error(f"Failed to save settings: {e}")
+
+    window.close()
 
 
 def run_gui(s: currentState) -> None:
     """Run the GUI for Clash Star Tracker."""
     sg.theme('light brown 3')
 
-    s.settings = load_settings(s)
+    write_batch(s)
+    create_shortcut(s)
+
+    s.settings = load_settings(s.SETTINGS_FILE, "Past files")
+    s.advancedSettings = load_settings(s.ADVANCED_SETTINGS_FILE, "Advanced settings")
 
     # --- Step 1: Define the Window Layout ---
 
@@ -136,7 +274,9 @@ def run_gui(s: currentState) -> None:
     left_column = [
         [sg.Text("Program Output:")],
         [sg.Multiline("", size=(80, 25), key='-OUTPUT-',
-         autoscroll=True, write_only=False)]]
+         autoscroll=True, write_only=False)],
+        [sg.Button("Advanced Settings", key='-ADVANCED-', size=(15, 1)),
+         sg.Button("Game Rules", key='-GAMERULES-', size=(15, 1))],]
     
 
     # The Right Column contains your settings and buttons.
@@ -152,9 +292,9 @@ def run_gui(s: currentState) -> None:
          sg.Input( key='-PLAYERS_FILE-', size=(30, 1),
          default_text=s.settings.get('players_filepath', ''), enable_events=True),
          sg.FileBrowse(file_types=(("Text Files", "*.txt"),))],
-        [sg.Multiline( default_text="Select a player file above to view/edit...",
+        [sg.Multiline(default_text="Select a player file above to view/edit...",
          size=(45, 10), key='-PLAYER_LIST_TEXT-')],
-        [sg.Button('Save Player List', key='-SAVE_PLAYERS-')],
+        [sg.Button('Save Player List', key='-SAVE_PLAYERS-', disabled=True)],
 
         # Open multi-account file
         [sg.Text("Multi-Account File (.json)", size=(18, 1)), 
@@ -163,7 +303,7 @@ def run_gui(s: currentState) -> None:
          sg.FileBrowse(file_types=(("JSON Files", "*.json"),))],
         [sg.Multiline( default_text="Select a player file above to view/edit...",
          size=(45, 10), key='-MULTI_LIST_TEXT-')],
-        [sg.Button('Save Multi-Account List', key='-SAVE_MULTI_ACCOUNTS-')],
+        [sg.Button('Save Multi-Account List', key='-SAVE_MULTI_ACCOUNTS-', disabled=True)],
 
         # Open History file
         [sg.Text("Player History File (.csv)", size=(18, 1)), 
@@ -210,7 +350,7 @@ def run_gui(s: currentState) -> None:
     ]
 
     # --- Step 2: Create the Window ---
-    s.window = sg.Window('Clash Star Tracker', layout, finalize=True)
+    s.window = sg.Window('Clash Star Tracker', layout, finalize=True, icon=s.ICO_FILE)
 
     # ------------------------------------- Main Event Loop -------------------------------------
     while True:
@@ -247,6 +387,9 @@ def run_gui(s: currentState) -> None:
                         print("Error: Player list text element not found in the window.")
                 except Exception as e:
                     sg.popup_error(f"Error reading file: {e}")
+                save_button = s.window['-SAVE_PLAYERS-']
+                if save_button is not None:
+                    save_button.update(disabled=False) # enable the save button
             
         # Saves modified player list to file
         elif event == '-SAVE_PLAYERS-':
@@ -283,6 +426,13 @@ def run_gui(s: currentState) -> None:
                         print("Error: Multi-account list text element not found in the window.")
                 except Exception as e:
                     sg.popup_error(f"Error reading file: {e}")
+                save_button = s.window['-SAVE_MULTI_ACCOUNTS-']
+                if save_button is not None:
+                    save_button.update(disabled=False) # enable the save button
+
+
+        elif event == '-ADVANCED-':
+            show_advanced_settings_window(s.ADVANCED_SETTINGS_FILE)
 
         elif event == '-RUN-':
             run_button = s.window['-RUN-']
@@ -301,6 +451,14 @@ def run_gui(s: currentState) -> None:
             if commit_button is None:
                 print("Error: Commit button not found in the window.")
                 continue
+            advanced_button = s.window['-ADVANCED-']
+            if advanced_button is None:
+                print("Error: Advanced button not found in the window.")
+                continue
+            gamerules_button = s.window['-GAMERULES-']
+            if gamerules_button is None:
+                print("Error: Game Rules button not found in the window.")
+                continue
 
             # --- Step 3: Run and load the input data ---
             # Clear the output area
@@ -308,6 +466,8 @@ def run_gui(s: currentState) -> None:
             run_button.update(disabled=True)  # Disable the button to prevent multiple clicks
             status_button.update(value="Processing... please wait.", text_color='yellow')
             commit_button.update(disabled=True)  # Disable commit button until processing is done
+            gamerules_button.update(disabled=True)  # Disable game rules button during processing
+            advanced_button.update(disabled=True)  # Disable advanced settings button during processing
             s.window.refresh()  # Refresh the window to show the changes
 
             # Unpack event and values from read_result
@@ -347,7 +507,7 @@ def run_gui(s: currentState) -> None:
 
             new_scores_from_edit = {}
             lines = edited_text.strip().split('\n')
-            for line in lines[1:]:
+            for line in lines:
                 try:
                     parts = line.split(',')
                     if len(parts) >= 2:

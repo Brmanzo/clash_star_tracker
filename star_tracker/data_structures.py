@@ -1,9 +1,9 @@
 # star_tracker/data_structures.py
-import json, os, shutil, sys
+import FreeSimpleGUI as sg, json, numpy as np, shutil, sys
 from pathlib import Path
 from typing import List, Optional
-import FreeSimpleGUI as sg
-import numpy as np
+
+from .presets import processingPresets
 
 class dataColumn:
     '''Records the absolute position of the column in the original image
@@ -82,7 +82,6 @@ class playerData:
             str(self.total_score())
         ]
         return ", ".join(parts)
-    
 
 class currentState:
     """Holds the current state of the application, including settings, data structures, and iterators."""
@@ -104,7 +103,14 @@ class currentState:
     # PSM 10 for single character/num recognition
     RANK_CONFIG   = f"--psm 10 -l {MODEL_NAME} -c tessedit_char_whitelist=0123456789lLiIoOsSzZ|"
 
-    SETTINGS_FILE = PROJECT_ROOT / "clash_star_tracker_settings.json"
+    VENV_PYTHON = sys.executable
+    ENTRY_POINT = PROJECT_ROOT / "star_tracker" / "__main__.py"
+    BATCH_FILE = PROJECT_ROOT / "Program_Files" / "Star_Tracker.bat"
+    ICO_FILE = PROJECT_ROOT / "Program_Files" / "star_tracker.ico"
+    SHORTCUT_NAME  = "Star Tracker" 
+
+    SETTINGS_FILE = PROJECT_ROOT / "past_files.json"
+    ADVANCED_SETTINGS_FILE = PROJECT_ROOT / "advanced_settings.json"
     HISTORY_FILE = PROJECT_ROOT / "player_history.csv"
 
     if not SETTINGS_FILE.exists():
@@ -114,9 +120,13 @@ class currentState:
 
     def __init__(self):
         """Initialize the current state with default values."""
+        # GUI elements
         self.window: sg.Window|None = None
         self.settings: dict = {}
+        self.advancedSettings: dict = {}
+        self.presets = processingPresets()
         
+        # Data structures
         self.players = []
         self.multiAccounters = None
         self.enemies = []
@@ -127,6 +137,7 @@ class currentState:
         self.new_scores: dict[str, int] = {}
         self.editable_lines: list[str] = []
 
+        # Column data
         self.rankCol: dataColumn|None = None
         self.levelCol: dataColumn|None = None
         self.playerCol: dataColumn|None = None
@@ -134,10 +145,12 @@ class currentState:
         self.percentageCol: dataColumn|None = None
         self.starsCol: dataColumn|None = None
 
+        # Path
         self.file_list: List[Path]|None = None
         self.image_path: Path|None = None
         self.debug_name: List[str]|None = None
 
+        # Images
         self.src: np.ndarray|None = None
         self.srcL: np.ndarray|None = None
         self.attackLines: np.ndarray|None = None
@@ -145,6 +158,7 @@ class currentState:
 
         self.verbose = True if "--v" in sys.argv else False
 
+        # Iterators
         self.abs_pos = 0
         self.lineTop = 0
         self.lineBottom = 0
@@ -177,3 +191,4 @@ class currentState:
 
         self.fileNum += 1
         self.lineNum = 0
+

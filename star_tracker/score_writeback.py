@@ -10,6 +10,7 @@ def load_history(path) -> OrderedDict:
     table = OrderedDict()
     with open(path, newline='', encoding='utf-8') as f:
         rdr = csv.reader(f, skipinitialspace=True)
+        next(rdr)  # Skip header row
         for row in rdr:
             if not row:
                 continue
