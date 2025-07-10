@@ -74,6 +74,10 @@ class currentState:
         self.menuRightMargin: int | None = None
         self.menuDimensions: tuple[int, int] | None = None
 
+        self.enemyStart: int | None = None
+        self.starsColEnd: int | None = None
+        self.percentageBegin: int | None = None
+
         self.headerEnd: int | None = None
         self.lineBegin: int | None = None
         self.lineEnd: int | None = None

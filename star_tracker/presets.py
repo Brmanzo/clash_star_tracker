@@ -59,6 +59,10 @@ class imageMeasurements:
         "lineBegin"              : ("lineBegin Cut", "lineBegin %"),
         "lineEnd"                : ("lineEnd Cut", "lineEnd %"),
 
+        "enemyStart"             : ("enemyStart Cut", "enemyStart %"),
+        "starsColEnd"            : ("starsColEnd Cut", "starsColEnd %"),
+        "percentageBegin"        : ("percentageBegin Cut", "percentageBegin %"),
+
         "rankCol"                : ("rankCol Cut", "rankCol %"),
         "levelCol"               : ("levelCol Cut", "levelCol %"),
         "playerCol"              : ("playerCol Cut", "playerCol %"),
@@ -115,6 +119,10 @@ class imageMeasurements:
         self.headerEnd: imageSlice | None        = imageSlice(s.headerEnd, s.menuDimensions[0]) if (s.headerEnd and s.menuDimensions is not None) else None
         self.lineBegin: imageSlice | None        = imageSlice(s.lineBegin, s.menuDimensions[1]) if (s.lineBegin and s.menuDimensions is not None) else None
         self.lineEnd: imageSlice | None          = imageSlice(s.lineEnd, s.menuDimensions[1], "end") if (s.lineEnd and s.menuDimensions is not None) else None
+
+        self.enemyStart: imageSlice | None       = imageSlice(s.enemyStart, s.attackLinesDimensions[1]) if (s.enemyStart and s.attackLinesDimensions is not None) else None
+        self.starsColEnd: imageSlice | None      = imageSlice(s.starsColEnd, s.attackLinesDimensions[1], "end") if (s.starsColEnd and s.attackLinesDimensions is not None) else None
+        self.percentageBegin: imageSlice | None  = imageSlice(s.percentageBegin, s.attackLinesDimensions[1]) if (s.percentageBegin and s.attackLinesDimensions is not None) else None
 
         self.rankCol: imageSlice | None          = imageSlice(s.rankCol, s.attackLinesDimensions[1]) if (s.rankCol and s.attackLinesDimensions is not None) else None
         self.levelCol: imageSlice | None         = imageSlice(s.levelCol, s.attackLinesDimensions[1]) if (s.levelCol and s.attackLinesDimensions is not None) else None
@@ -271,7 +279,7 @@ class processingPresets:
                                        'B':'8', 'W':'11',
                                        'Z':'2', 'z':'2',
                                        'e':'2', 'a':'4',
-                                       'd':'1'})
+                                       'd':'1', 'i':'1'})
         
         self.DIGIT_GLYPHS = "0-9lLiIoOsSzdeZWagTB|L"
 

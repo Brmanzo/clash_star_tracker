@@ -1,16 +1,29 @@
 # clash_star_tracker
 Clash Star Tracker helps players to track their team's performance using
 image processing, optical character recognition, and automation of score
-assignment.
+assignment. 
 
-To use the program within the cloned directory:
-1. Provide your player names in players.txt with a new player name per line.
-2. Provide any similar account names in multi_accounts.json with the alias as
-   the key, and the list of accounts from strongest to weakest as the value.
-3. Relocate any screenshots you'd like to process within an Images directory.
-4. Run "python -m star_tracker" and the history should be written to
-   player_history.csv.
-5. If you'd like to view debugging data, run with --db
+This program currently only works on screenshots of the desktop version of
+clash of clans on the google play store, however it is designed to work for
+any aspect ratio. The image quality, format and properties of phone screenshots
+have proven difficult to adapt into the current workflow, but it should be
+possible in the future.
+
+To use the program within the cloned/downloaded directory:
+1. Run "python -m star_tracker" in powershell or terminal to load the program.
+2. Add your team's players to the players.txt, and any multiaccount names to
+   multi_accounts.json in greatest to least strength
+3. Make sure the proper csv file is selected to output to, and select the
+   images you'd like to be processed.
+4. Under Game rules you can modify the penalties and bonuses for each rule
+5. Under Advanced Settings, you can adjust the knobs used to tune the image
+   processing and adaptive thresholding functions.
+6. Once you are ready, click Run Analysis and the program will begin
+   deciphering the images. Warnings and Errors will produce debugging images
+   in the Debug folder.
+7. Once you see your results displayed, you can make any necessary corrections
+   before clicking commit changes, which will update the history file, and
+   print the current leaderboard to the screen.
 
 This program analyzes game screenshots by converting to HSL, (Hue, Saturation,
 and Lightness) and detects changes in the minimum, maximum, and average
@@ -62,31 +75,19 @@ fuzzy matching at a fixed confidence. Enemy names are secondary in importance,
 compared to enemy rank, so the first OCR result is simply added to a set, and
 further OCR results are fuzzy matched to their initial readings.
 
-I've added initial support for names that alias with each other via a provided
+I've added support for names that alias with each other via a provided
 json file called multi_accounts.json. Inside is a dictionary where the key
 is the OCR returned string, and the value is a list of all aliasing players in
 descending rank. This ordering is consistent with war strength, but may drift
 over time. This also changes depending on the aliased players participation
 in each war, so manual adjustment can be made on a case by case basis.
 
-The game rules are defined in data_structures.playerData.total_score() where
-you can create your own custom bonuses or penalties for specific attacks. For
-example, if you want to penalize dropping more than 10 ranks to attack a lower
-player who hasn't been attacked yet: if there were no old stars you can reduce
-the total score. Or if you want to reward players who jump up a certain amount
-of ranks and score a new star, you can increase the total score.
-
-The total scores are appended to a new column in the player_history csv, where
-the final column is the total for all of the columns. The totals are then
-printed to a leaderboard sorted by greatest stars to share with your team.
-
-I plan to add an override for the feature recognition to accept hardcoded data
-positions in the future in case of failure, however my current detection works
-great for screenshots taken from the official clash of clans desktop app. I
-also plan to create a UI and better support for implementing custom game rules.
+I am currently developing the fallback hardcoded measurements for when the
+dynamic processing fails, however it is proving very challenging to integrate.
+I am quite happy with how it performs, and am eager to see if it helps anyone
+else manage their teams' performance!
 
 Using FFT to perform edge detection may also be worth looking into, however I
 am very satisfied with what I've learned throughout this project, and the tools
-I've developed to realize my vision. I'd recommend running with --db to see all
-the cool plots generated throughout the flow! If you have any suggestions feel
-free to reach out to my email, or join my clan Another Land #8LYR2LLP
+I've developed to realize my vision. If you have any questions, please join our
+discord at discord.gg/vghJRYmej5, or join our clan Another Land at #8LYR2LLP

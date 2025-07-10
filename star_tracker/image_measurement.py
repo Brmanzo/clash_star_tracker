@@ -38,19 +38,20 @@ def menu_crop(s: currentState) -> np.ndarray:
     menuTopMargin, menuBottomMargin = measure_image(s.srcL, menu_col_avg_TH, 
                                                     behavior="relative threshold, average, by row, first rise, last, fall")
     # If measurement file was created, check if measurements are within expected range
-    failedTopMargin = m.outside_range(s, menuTopMargin/srcH, "menuTopMargin") or menuTopMargin == 0
-    failedBottomMargin = m.outside_range(s, (srcH - menuBottomMargin)/srcH, "menuBottomMargin") or menuBottomMargin >= srcH - 1
-    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and (failedTopMargin or failedBottomMargin):
-        if failedTopMargin and m.menuTopMargin is not None:
-            menuTopMargin = m.menuTopMargin.cut
-            print_to_gui(s, f"Error: Could not detect Top menu margin in image, Trying previous crop at {menuTopMargin}.")
-            
-        if failedBottomMargin and m.menuBottomMargin is not None:
-            menuBottomMargin = m.menuBottomMargin.cut
-            print_to_gui(s, f"Error: Could not detect Bottom menu margin in image, Trying previous crop at {menuBottomMargin}.")
+    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None:
+        failedTopMargin = m.outside_range(s, menuTopMargin/srcH, "menuTopMargin") or menuTopMargin == 0
+        failedBottomMargin = m.outside_range(s, (srcH - menuBottomMargin)/srcH, "menuBottomMargin") or menuBottomMargin >= srcH - 1
+        if (failedTopMargin or failedBottomMargin):
+            if failedTopMargin and m.menuTopMargin is not None:
+                menuTopMargin = m.menuTopMargin.cut
+                print_to_gui(s, f"Error: Could not detect Top menu margin in image, Trying previous crop at {menuTopMargin}.")
+                
+            if failedBottomMargin and m.menuBottomMargin is not None:
+                menuBottomMargin = m.menuBottomMargin.cut
+                print_to_gui(s, f"Error: Could not detect Bottom menu margin in image, Trying previous crop at {menuBottomMargin}.")
 
-        debug_oscilloscope(s, s.srcL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                           {s.fileNum}_top_bottom_margin_error_{s.debug_name[1]}", [menuTopMargin, menuBottomMargin], axis="row")
+            debug_oscilloscope(s, s.srcL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
+                            {s.fileNum}_top_bottom_margin_error_{s.debug_name[1]}", [menuTopMargin, menuBottomMargin], axis="row")
 
     # ------------------------------------------------------------------- Crop left and right margins -------------------------------------------------------------------
 
@@ -59,19 +60,20 @@ def menu_crop(s: currentState) -> np.ndarray:
                                                     behavior="relative threshold, average, by col, first rise, last, fall")
 
     # If measurement file was created, check if measurements are within expected range
-    failedLeftMargin = m.outside_range(s, menuLeftMargin/srcW, "menuLeftMargin") or menuLeftMargin == 0
-    failedRightMargin = m.outside_range(s, (srcW - menuRightMargin)/srcW, "menuRightMargin") or menuRightMargin >= srcW - 1
-    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and (failedLeftMargin or failedRightMargin):
-        if failedLeftMargin and m.menuLeftMargin is not None:
-            menuLeftMargin = m.menuLeftMargin.cut
-            print_to_gui(s, f"Error: Could not detect menu left margin in image, Trying previous crop at {menuLeftMargin}.")
+    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None:
+        failedLeftMargin = m.outside_range(s, menuLeftMargin/srcW, "menuLeftMargin") or menuLeftMargin == 0
+        failedRightMargin = m.outside_range(s, (srcW - menuRightMargin)/srcW, "menuRightMargin") or menuRightMargin >= srcW - 1
+        if (failedLeftMargin or failedRightMargin):
+            if failedLeftMargin and m.menuLeftMargin is not None:
+                menuLeftMargin = m.menuLeftMargin.cut
+                print_to_gui(s, f"Error: Could not detect menu left margin in image, Trying previous crop at {menuLeftMargin}.")
 
-        if failedRightMargin and m.menuRightMargin is not None:
-            menuRightMargin = m.menuRightMargin.cut
-            print_to_gui(s, f"Error: Could not detect menu right margin in image, Trying previous crop at {menuRightMargin}.")
+            if failedRightMargin and m.menuRightMargin is not None:
+                menuRightMargin = m.menuRightMargin.cut
+                print_to_gui(s, f"Error: Could not detect menu right margin in image, Trying previous crop at {menuRightMargin}.")
 
-        debug_oscilloscope(s, s.srcL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                           {s.fileNum}_left_right_margin_error_{s.debug_name[1]}", [menuLeftMargin, menuRightMargin], axis="col")
+            debug_oscilloscope(s, s.srcL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
+                            {s.fileNum}_left_right_margin_error_{s.debug_name[1]}", [menuLeftMargin, menuRightMargin], axis="col")
 
     # Crop the menu from the background image
     s.menu = s.src[menuTopMargin : menuBottomMargin, menuLeftMargin : menuRightMargin]
@@ -96,31 +98,33 @@ def menu_crop(s: currentState) -> np.ndarray:
     # Scan from top, past the headers to get to the top of the first line, leave the whitespace following the last line
     headerEnd = measure_image(s.menuL[PX_MARGIN:,:], row_menu_min_TH, 
                               behavior="absolute threshold, minimum, by row, first fall, next, fall")[1]
-    failedHeaderEnd = m.outside_range(s, headerEnd/menuH, "headerEnd") or headerEnd >= menuH - 1
-    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedHeaderEnd:
-        if failedHeaderEnd and m.headerEnd is not None:
-            headerEnd = m.headerEnd.cut
-            print_to_gui(s, f"Error: Could not detect menu left margin in image {s.fileNum}.\
-                Missing fixed margin: {menu_row_avg_TH:.2f}. Trying previous crop at {menuLeftMargin}.") 
-            debug_oscilloscope(s, s.menuL.copy(), f"{s.debug_name[0].replace(" ", "_")}_\
-                               {s.fileNum}_header_error_{s.debug_name[1]}", [headerEnd], axis="row")
+    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None:
+        failedHeaderEnd = m.outside_range(s, headerEnd/menuH, "headerEnd") or headerEnd >= menuH - 1
+        if failedHeaderEnd:
+            if failedHeaderEnd and m.headerEnd is not None:
+                headerEnd = m.headerEnd.cut
+                print_to_gui(s, f"Error: Could not detect menu left margin in image {s.fileNum}.\
+                    Missing fixed margin: {menu_row_avg_TH:.2f}. Trying previous crop at {menuLeftMargin}.") 
+                debug_oscilloscope(s, s.menuL.copy(), f"{s.debug_name[0].replace(" ", "_")}_\
+                                {s.fileNum}_header_error_{s.debug_name[1]}", [headerEnd], axis="row")
 
     # Scan from edge of menu to lines, by targetting when average drops below max average
     lineBegin, lineEnd = measure_image(s.menuL[headerEnd:, :], col_menu_max_avg_TH,
                                        behavior=f"absolute threshold, average, by col, first fall, last, rise")
-    failedLineBegin = m.outside_range(s, lineBegin/menuW, "lineBegin") or lineBegin == 0
-    failedLineEnd = m.outside_range(s, (menuW - lineEnd)/menuW, "lineEnd") or lineEnd >= srcW - 1
-    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and (failedLineBegin or failedLineEnd):
-        if failedLineBegin and m.lineBegin is not None:
-            lineBegin = m.lineBegin.cut
-            print_to_gui(s, f"Error: Could not detect line begin in image, Trying previous crop at {lineBegin}.")
+    if s.MEASUREMENT_FILE.exists() and s.debug_name is not None:
+        failedLineBegin = m.outside_range(s, lineBegin/menuW, "lineBegin") or lineBegin == 0
+        failedLineEnd = m.outside_range(s, (menuW - lineEnd)/menuW, "lineEnd") or lineEnd >= srcW - 1
+        if (failedLineBegin or failedLineEnd):
+            if failedLineBegin and m.lineBegin is not None:
+                lineBegin = m.lineBegin.cut
+                print_to_gui(s, f"Error: Could not detect line begin in image, Trying previous crop at {lineBegin}.")
 
-        if failedLineEnd and m.lineEnd is not None:
-            lineEnd = m.lineEnd.cut
-            print_to_gui(s, f"Error: Could not detect line end in image, Trying previous crop at {lineEnd}.")
+            if failedLineEnd and m.lineEnd is not None:
+                lineEnd = m.lineEnd.cut
+                print_to_gui(s, f"Error: Could not detect line end in image, Trying previous crop at {lineEnd}.")
 
-        debug_oscilloscope(s, s.menuL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                           {s.fileNum}_line_begin_end_error_{s.debug_name[1]}", [lineBegin, lineEnd], axis="col")
+            debug_oscilloscope(s, s.menuL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
+                            {s.fileNum}_line_begin_end_error_{s.debug_name[1]}", [lineBegin, lineEnd], axis="col")
 
     s.headerEnd = headerEnd
     s.lineBegin = lineBegin
@@ -141,15 +145,15 @@ def measure_rank(s: currentState, threshold: float) -> None:
     # Measure the end of the rank column by scanning for the first fall in average lightness
     rankEnd  = measure_image(s.attackLinesL, threshold, 
                              behavior="relative threshold, average, by col, first fall, next, rise")[1]
-    if s.attackLinesDimensions is not None and s.measurementPresets is not None:
+    if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedRankEnd = m.outside_range(s, rankEnd/s.attackLinesDimensions[1], "rankCol") or rankEnd >= s.attackLinesDimensions[1] - 1
-        if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedRankEnd:
+        if s.debug_name is not None and failedRankEnd:
             if failedRankEnd and m.rankCol is not None:
                 rankEnd = m.rankCol.cut
                 print_to_gui(s, f"Error: Could not detect rank column in image, Trying previous crop at {rankEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                                {s.fileNum}_rank_error_{s.debug_name[1]}", [rankEnd], axis="row")
+                                {s.fileNum}_rank_error_{s.debug_name[1]}", [rankEnd], axis="col")
 
     rankCol = dataColumn(rankEnd)
     s.rankCol = rankCol
@@ -164,15 +168,15 @@ def measure_level(s: currentState, threshold: float) -> None:
     levelEnd = measure_image(s.attackLinesL[:, s.rankCol.end:], threshold,
                              behavior="absolute threshold, minimum, by col, first fall, next, fall")[1]
     
-    if s.attackLinesDimensions is not None and s.measurementPresets is not None:
+    if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedLevelEnd = m.outside_range(s, levelEnd/s.attackLinesDimensions[1], "levelCol") or levelEnd >= s.attackLinesDimensions[1] - 1
-        if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedLevelEnd:
+        if s.debug_name is not None and failedLevelEnd:
             if failedLevelEnd and m.levelCol is not None:
                 levelEnd = m.levelCol.cut
                 print_to_gui(s, f"Error: Could not detect level column in image, Trying previous crop at {levelEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                                {s.fileNum}_level_error_{s.debug_name[1]}", [levelEnd], axis="row")
+                                {s.fileNum}_level_error_{s.debug_name[1]}", [levelEnd], axis="col")
 
     levelCol = dataColumn(levelEnd)
     s.levelCol = levelCol
@@ -186,15 +190,15 @@ def measure_player(s:currentState, threshold: float) -> None:
     # Player column ends at the first fall in average lightness after the level column
     playerEnd = measure_image(s.attackLinesL[:, s.levelCol.end + LOOK_AHEAD_MARGIN:], threshold,
                               behavior="relative threshold, average, by col, from start, next, fall")[1]
-    if s.attackLinesDimensions is not None and s.measurementPresets is not None:
+    if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedPlayerEnd = m.outside_range(s, (playerEnd + LOOK_AHEAD_MARGIN)/s.attackLinesDimensions[1], "playerCol") or playerEnd >= s.attackLinesDimensions[1] - 1
-        if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedPlayerEnd:
+        if s.debug_name is not None and failedPlayerEnd:
             if failedPlayerEnd and m.playerCol is not None:
                 playerEnd = m.playerCol.cut
                 print_to_gui(s, f"Error: Could not detect player column in image, Trying previous crop at {playerEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                                {s.fileNum}_player_error_{s.debug_name[1]}", [playerEnd], axis="row")
+                                {s.fileNum}_player_error_{s.debug_name[1]}", [playerEnd], axis="col")
                     
     playerCol = dataColumn(playerEnd + LOOK_AHEAD_MARGIN)
     s.playerCol = playerCol
@@ -209,26 +213,11 @@ def measure_enemy(s: currentState, threshold: float, col_al_global_min_TH: float
     enemyStart = measure_image(s.attackLinesL[:, s.playerCol.end:], s.presets.BLACK_TH, 
                                behavior="absolute threshold, minimum, by col, from start, next, rise")[1]
 
-    if enemyStart == 0 or enemyStart > s.attackLinesL.shape[1] * 0.4:
-        print_to_gui(s, f"Error: Could not detect enemy column start at position {enemyStart} \
-              for absolute threshold minimum of {threshold}. Exiting.")
-        if s.debug_name is not None:    
-            debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(" ", "_")}_ \
-                               {s.fileNum}_enemy_start_error_{s.debug_name[1]}", None, axis="col")
-        sys.exit(1)
-
     # Look ahead to the final jump in average lightness to find the end of the stars column
     # specifying an additional condition for greater accuracy
     starsColEnd = measure_image(s.attackLinesL[:, s.playerCol.end + PX_MARGIN:], threshold,
                                 behavior=f"relative threshold, average, by col, from start, next, rise while min > {col_al_global_min_TH*0.95}")[1]
     
-    if starsColEnd == 0 or starsColEnd > s.attackLinesL.shape[1] * 0.55:
-        print_to_gui(s, f"Error: Could not detect stars column end at position {starsColEnd} \
-              for relative threshold average of {threshold}. Exiting.")
-        if s.debug_name is not None:    
-            debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(" ", "_")}_\
-                               {s.fileNum}_stars_end_error_{s.debug_name[1]}", None, axis="col")
-        sys.exit(1)
         
     starsColEnd = starsColEnd + PX_MARGIN + dataColumn.abs_pos
 
@@ -241,15 +230,16 @@ def measure_enemy(s: currentState, threshold: float, col_al_global_min_TH: float
     enemyEnd = measure_image(s.attackLinesL[:, s.playerCol.end + enemyStart + LOOK_AHEAD_MARGIN:],
                              col_al_local_min_TH, behavior=f"absolute threshold, minimum, by col, from start, next, rise")[1]
     
-    if s.attackLinesDimensions is not None and s.measurementPresets is not None:
+    if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedEnemyEnd = m.outside_range(s, (enemyEnd + PX_MARGIN + LOOK_AHEAD_MARGIN)/s.attackLinesDimensions[1], "enemyCol") or enemyEnd >= s.attackLinesDimensions[1] - 1
-        if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedEnemyEnd:
+        if s.debug_name is not None and failedEnemyEnd:
             if failedEnemyEnd and m.enemyCol is not None:
                 enemyEnd = m.enemyCol.cut
                 print_to_gui(s, f"Error: Could not detect enemy column in image, Trying previous crop at {enemyEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                                {s.fileNum}_enemy_error_{s.debug_name[1]}", [enemyEnd], axis="row")
+                                {s.fileNum}_enemy_error_{s.debug_name[1]}", [enemyEnd], axis="col")
+                
     enemyCol = dataColumn(enemyEnd + PX_MARGIN + LOOK_AHEAD_MARGIN, enemyStart - PX_MARGIN)
     enemyCol.begin -= PX_MARGIN
 
@@ -276,13 +266,6 @@ def measure_percentage(s: currentState, threshold: float) -> None:
     firstStar = measure_image(s.attackLinesL[:, percentageBegin:], s.presets.WHITE_TH,
                               behavior="absolute threshold, maximum, by col, from start, next, rise")[1]
     
-    if firstStar == 0 or firstStar > s.attackLinesL.shape[1] * 0.06:
-        print_to_gui(s, f"Error: Could not detect first star at position {firstStar} \
-               for absolute threshold maximum of {s.presets.WHITE_TH}. Exiting.")
-        if s.debug_name is not None:    
-            debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(" ", "_")}_ \
-                               {s.fileNum}_first_star_error_{s.debug_name[1]}", None, axis="col")
-        sys.exit(1)
     # Adjust first star position to be relative to the enemy column
     firstStar += percentageBegin
 
@@ -292,15 +275,15 @@ def measure_percentage(s: currentState, threshold: float) -> None:
     percentageEnd = firstStar - percentageEnd
     starsBegin = firstStar - starsBegin
     # Length returned is the amount to subtract from the end of the percentage column 
-    if s.attackLinesDimensions is not None and s.measurementPresets is not None:
+    if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedPercentageEnd = m.outside_range(s, (starsBegin - percentageBegin + enemyCenter)/s.attackLinesDimensions[1], "percentageCol") or percentageEnd >= s.attackLinesDimensions[1] - 1
-        if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedPercentageEnd:
+        if s.debug_name is not None and failedPercentageEnd:
             if failedPercentageEnd and m.percentageCol is not None:
                 percentageEnd = m.percentageCol.cut
                 print_to_gui(s, f"Error: Could not detect percentage column in image, Trying previous crop at {percentageEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                                {s.fileNum}_percentage_error_{s.debug_name[1]}", [percentageEnd], axis="row")
+                                {s.fileNum}_percentage_error_{s.debug_name[1]}", [percentageEnd], axis="col")
 
     percentageCol = dataColumn(starsBegin - percentageBegin + enemyCenter)
     s.percentageCol = percentageCol
@@ -314,13 +297,6 @@ def measure_stars(s: currentState, col_al_local_min_TH: float, starsColEnd: int)
     realStarsEnd = measure_image(cv2.flip(s.attackLinesL[:, s.percentageCol.end:starsColEnd - PX_MARGIN], 1), 
                                  col_al_local_min_TH ,behavior=f"absolute threshold, minimum, by col, from start, next, fall")[1]
     
-    if realStarsEnd == 0 or realStarsEnd > s.attackLinesL.shape[1] * 0.15:
-        print_to_gui(s, f"Error: Could not detect real stars end at position {realStarsEnd} \
-              for absolute threshold minimum of {col_al_local_min_TH}. Exiting.")
-        if s.debug_name is not None:    
-            debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(" ", "_")}_ \
-                               {s.fileNum}_real_stars_end_error_{s.debug_name[1]}", None, axis="col")
-        sys.exit(1)
 
     # Adjust realStarsEnd and width to be relative to the percentage column end
     realStarsEnd = starsColEnd - PX_MARGIN - realStarsEnd
@@ -337,15 +313,15 @@ def measure_stars(s: currentState, col_al_local_min_TH: float, starsColEnd: int)
     elif peaks < 3:
         starWidth = starWidth * 3
     
-    if s.attackLinesDimensions is not None and s.measurementPresets is not None:
+    if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedStarsEnd = m.outside_range(s, (starWidth)/s.attackLinesDimensions[1], "starsCol") or realStarsEnd >= s.attackLinesDimensions[1] - 1
-        if s.MEASUREMENT_FILE.exists() and s.debug_name is not None and failedStarsEnd:
+        if s.debug_name is not None and failedStarsEnd:
             if failedStarsEnd and m.starsCol is not None:
                 realStarsEnd = m.starsCol.cut
                 print_to_gui(s, f"Error: Could not detect stars column in image, Trying previous crop at {realStarsEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
-                                {s.fileNum}_stars_error_{s.debug_name[1]}", [realStarsEnd], axis="row")
+                                {s.fileNum}_stars_error_{s.debug_name[1]}", [realStarsEnd], axis="col")
 
     starsCol = dataColumn(starWidth)
     s.starsCol = starsCol

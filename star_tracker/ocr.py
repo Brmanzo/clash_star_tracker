@@ -81,6 +81,7 @@ def auto_correct_num(s: currentState, num_OCR: str) -> int|None:
     for the commonly mistaken number in DIGIT_GLYPHS'''
     num_clean = re.sub(fr'[^{s.presets.DIGIT_GLYPHS}]', '', num_OCR)
     digits = num_clean.translate(s.presets.TO_DIGIT).strip(".")
+    print(f"numclean: {num_clean}, digits: {digits}")
     if not digits:
         return None          # or raise a clean exception
     return int(digits)
