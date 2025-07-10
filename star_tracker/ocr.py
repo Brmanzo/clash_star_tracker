@@ -4,7 +4,8 @@ import cv2, numpy as np, re, sys
 from fuzzywuzzy import process, utils
 
 from .preprocessing import sample_image
-from .data_structures import currentState
+from .state import currentState, print_to_gui
+
 
 def preprocess_line(s: currentState, img_bgr: np.ndarray, line:bool) -> np.ndarray:
     """Samples background of input image and returns a single channel preprocessed image
@@ -88,7 +89,7 @@ def auto_correct_player(s: currentState, player_OCR: str, confidence_threshold: 
     '''Given a player name from OCR, match to an existing name from player table using fuzzy matching'''
     clean_name = utils.full_process(player_OCR)
     if s.players is None or s.enemies is None:
-        print(f"Error: players or enemies list is None for image {s.fileNum}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: players or enemies list is None for image {s.fileNum}. Exiting.")
         sys.exit(1)
     if clean_name and not enemy:
         result = process.extractOne(player_OCR, s.players)

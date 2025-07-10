@@ -1,0 +1,8 @@
+{
+    "Incomplete Clean Dropping Penalty": -1,
+    "Incomplete Clean Dropping Rank Difference": -10,
+    "Stealing Lower Target Penalty": "Negate earned stars",
+    "Stealing Lower Target Rank Difference": -10,
+    "New Star on Higher Target Bonus": 1,
+    "New Star on Higher Target Rank Difference": 5
+}

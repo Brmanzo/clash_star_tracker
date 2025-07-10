@@ -3,52 +3,48 @@
     "Horizontal Background Crop Scale Factor": 0.99,
     "Vertical Background Crop Epsilon": 0.2,
     "Vertical Background Crop Scale Factor": 0.99,
-
     "Horizontal Menu Crop Epsilon": 0.001,
     "Horizontal Menu Crop Scale Factor": 0.99,
     "Vertical Menu Crop Epsilon": 0.001,
     "Vertical Menu Crop Scale Factor": 0.97,
-
     "Horizontal Lines Local Minimum Epsilon": 0.01,
     "Horizontal Lines Local Minimum Scale Factor": 0.95,
     "Horizontal Lines Global Minimum Epsilon": 0.001,
     "Horizontal Lines Global Minimum Scale Factor": 0.99,
-
     "Horizontal Data Column Separation Epsilon": 0.0005,
     "Horizontal Data Column Separation Scale Factor": 0.99,
-
     "Rank-Name Separation Epsilon": 0.01,
     "Rank-Name Separation Scale Factor": 0.99,
-
     "Empty Attack Line Epsilon": 0.01,
-    "Empty Attack Line Scale Factor": 1.00,
-
+    "Empty Attack Line Scale Factor": 1.0,
     "New line separation Epsilon": 0.01,
     "New line separation Scale Factor": 0.97,
-
     "Old Star Noise Epsilon": 0.01,
-    "Old Star Noise Scale Factor": 1.00,
-
-    "Preprocessing Light Upperbound": 150,
-    "Preprocessing Light Lowerbound": 0,
-
+    "Old Star Noise Scale Factor": 1.0,
+    "Fall-back Tolerance Margin": 1.2,
+    "Preprocessing Light Upperbound": 150.0,
+    "Preprocessing Light Lowerbound": 0.0,
     "Blob to Remove Size Percentage": 0.06,
-
-    "Line Background Sampling (x0, y0, x1, y1)": [50, 20, 60, 30],
-    "Small Corner Background Sampling (x0, y0, x1, y1)": [0, 0, 5, 5],
-
-    "Light Row Upper Bound": 0.80,
+    "Line Background Sampling (x0, y0, x1, y1)": [
+        50,
+        20,
+        60,
+        30
+    ],
+    "Small Corner Background Sampling (x0, y0, x1, y1)": [
+        0,
+        0,
+        5,
+        5
+    ],
+    "Light Row Upper Bound": 0.8,
     "Light Row Filter Value": -0.01,
-
     "Upper Dark Row Upper Bound": 0.77,
     "Upper Dark Row Filter Value": 0.03,
-
-    "Lower Dark Row Upper Bound": 0.70,
+    "Lower Dark Row Upper Bound": 0.7,
     "Lower Dark Row Filter Value": 0.05,
-
     "Upper User Row Upper Bound": 0.62,
     "Upper User Row Filter Value": 0.09,
-
     "Lower User Row Upper Bound": 0.0,
     "Lower User Row Filter Value": 0.11
 }

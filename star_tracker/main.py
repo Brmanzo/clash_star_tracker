@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# main.py
+# star_tracker/main.py
 # ------------------------------------------------------------
 import pytesseract, sys
 
-from .data_structures import currentState
+from .state import currentState
 from .gui import run_gui
 # ------------------------------------------------------------
 

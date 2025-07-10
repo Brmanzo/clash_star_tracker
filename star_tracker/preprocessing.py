@@ -1,9 +1,11 @@
 # star_tracker/preprocessing.py
+import numbers
 import cv2, numpy as np
 from typing import Tuple, List
 from matplotlib import pyplot as plt
 
-from .data_structures import dataColumn, currentState
+from .state import currentState, print_to_gui
+from .presets import dataColumn
 
 def get_metrics(img_slice: np.ndarray) -> Tuple[float, float, float]:
     '''Helper to return the requested stat per slice of an image.'''
@@ -206,8 +208,8 @@ def sample_image(src: np.ndarray, behavior: str, globalTH: float|None, eps: floa
         while i + 1 < len(data) and abs(data[i] - data[i + 1]) > eps:
             i += 1
         # if debug: 
-        #     print(f"original data: {data[:10]}")
-        #     print(f"local data: {data[i:i+10]}")
+        #     print_to_gui(s,f"original data: {data[:10]}")
+        #     print_to_gui(s,f"local data: {data[i:i+10]}")
         return data[i]
 
     # Remove unique values from the front of list, leaving only the repeating values
@@ -236,7 +238,7 @@ def count_peaks(src: np.ndarray, thresh: float) -> int:
         x += next_x
     return peaks
 
-def debug_oscilloscope(s: currentState, dbgL: np.ndarray, graphName: str, plot_data: List[dataColumn]|None, axis: str) -> None:
+def debug_oscilloscope(s: currentState, dbgL: np.ndarray, graphName: str, plot_data: List[dataColumn|int]|None, axis: str) -> None:
     '''Oscilloscope-like function to plot lightness statistics over a given image for use in debugging'''
     
     if axis == "row":
@@ -244,7 +246,7 @@ def debug_oscilloscope(s: currentState, dbgL: np.ndarray, graphName: str, plot_d
 
     h, w = dbgL.shape[:2]
     if w == 0:
-        print(f"Warning: Debug oscilloscope received an empty image for {graphName}.")
+        print_to_gui(s,f"Warning: Debug oscilloscope received an empty image for {graphName}.")
         return
     
     lAvgData, lMinData, lMaxData = [], [], []
@@ -282,26 +284,39 @@ def debug_oscilloscope(s: currentState, dbgL: np.ndarray, graphName: str, plot_d
     out_path = str(s.OUT_DIR /f"{graphName}_lightness.png")
     plt.savefig(out_path)
     plt.close() # Close the plot to free up memory
-    print(f"Saved combined plot to '{out_path}'")
+    print_to_gui(s,f"Saved combined plot to '{out_path}'")
+    dbg_vis = cv2.cvtColor(dbgL, cv2.COLOR_GRAY2BGR)
 
-    # Optional drawing of column boundaries when passed into second input
     if plot_data:
         for datum in plot_data:
-            cv2.rectangle(dbgL, (datum.begin , 0), (datum.end, h - 1), (0, 0, 0), 2)
+            if isinstance(datum, dataColumn):
+                cv2.rectangle(dbg_vis,
+                            (datum.begin, 0), (datum.end, h - 1),
+                            (0, 0, 255), 2)                  # red column
+            elif isinstance(datum, numbers.Real):      # any numeric type
+                pos = int(datum)
+                if axis == "row":
+                    # row index has become an X coordinate → vertical line!
+                    cv2.line(dbg_vis, (pos, 0), (pos, h-1), (0,255,0), 2)
+                else:                    # axis == "col"
+                    cv2.line(dbg_vis, (pos, 0), (pos, h-1), (0,255,0), 2)
+    if axis == "row":
+        # Rotate the image back to its original orientation
+        dbg_vis = cv2.rotate(dbg_vis, cv2.ROTATE_90_CLOCKWISE)
 
-    out_ss_src = str(s.OUT_DIR /f"{graphName}_src_ss_.png")
-    print(f"Saved original ss rect →", out_ss_src)
-    cv2.imwrite(out_ss_src, dbgL)
+    out_ss_src = s.OUT_DIR / f"{graphName}_src_ss.png"
+    cv2.imwrite(str(out_ss_src), dbg_vis)
+    print_to_gui(s, f"Saved original image → {out_ss_src}")
 
 
 def debug_image(s: currentState, image_to_save: np.ndarray, img_name: str) -> None:
     if image_to_save is None:
-        print(f"Debug image {img_name} is None, skipping save.")
+        print_to_gui(s,f"Debug image {img_name} is None, skipping save.")
         return
     '''Outputs an image given a filename and current iterator value. '''
     if s.debug_name is None:
-        print("Error: debug_name is not set in currentState. Cannot save debug image.")
+        print_to_gui(s,"Error: debug_name is not set in currentState. Cannot save debug image.")
         return
     out = str(s.OUT_DIR /f"{s.debug_name[0]}_{img_name}_{s.fileNum}.png")
-    print(f"Saved preprocessed {img_name} →", out)
+    print_to_gui(s,f"Saved preprocessed {img_name} → {out}")
     cv2.imwrite(out, image_to_save)

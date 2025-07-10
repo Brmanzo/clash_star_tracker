@@ -1,39 +1,130 @@
+# # File: star_tracker/presets.py
 import numpy as np
-from typing import TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .data_structures import dataColumn
+if TYPE_CHECKING:                           # only during “mypy / pylance”
+    from .state import currentState 
+
+class dataColumn:
+    '''Records the absolute position of the column in the original image
+    
+    Given the relative end point, constructs an object reporting the beginning as
+    the previous column's end as well as the resulting width of the column'''
+    abs_pos = 0
+
+    def __init__(self, end, begin=0):
+        self.begin = dataColumn.abs_pos + begin
+        self.end   = end + self.begin
+        self.width = self.end - self.begin
+
+        dataColumn.abs_pos += self.width + begin
 
 class sampleImagePresets:
+    '''Container for image sampling tuple to use for presets.'''
     def __init__(self, repCharTol: float, filterScale: float):
         self.repCharTol = repCharTol
         self.filterScale = filterScale
 
-class ImageMeasurements:
-    """Holds the image measurement presets for sampling."""
-    
-    def __init__(self):
-        self.menuTopMargin: int|None        = None
-        self.menuBottomMargin: int|None     = None
-        self.menuLeftMargin: int|None       = None
-        self.menuRightMargin: int|None      = None
-        
-        self.headerEnd: int|None            = None
-        self.lineBegning: int|None          = None
-        self.lineEnd: int|None              = None
-
-        self.rankCol: dataColumn|None       = None
-        self.levelCol: dataColumn|None      = None
-        self.playerCol: dataColumn|None     = None
-        self.enemyCol: dataColumn|None      = None
-        self.percentageCol: dataColumn|None = None
-        self.starsCol: dataColumn|None      = None
-
 class backgroundThresholds:
+    '''Container for background lightness thresholds in presets.'''
     def __init__(self, bound: float, delta: float):
         self.bound = bound
         self.delta = delta*255 # Convert delta to pixel value
 
+class imageSlice:
+    '''Given a cut of an image and the source width, presents a tuple containing 
+    the cut and the overall percentage of the cut in relation to the source width.'''
+    def __init__(self, slice: dataColumn | int, end: int, side: str="begin"):
+        if isinstance(slice, int):
+            self.cut = slice
+            if side == "end":
+                self.percentage = abs(end - slice) / end
+            else:
+                self.percentage = abs(self.cut) / end
+        elif isinstance(slice, dataColumn):
+            self.cut = slice.end
+            self.percentage = abs(slice.width) / end
+
+class imageMeasurements:
+    """Holds successful measurements for manual cropping if measurement fails."""
+
+    imageMeasurementTable = {
+        # cut key                   percentage key
+        "menuTopMargin"          : ("menuTopMargin Cut", "menuTopMargin %"),
+        "menuBottomMargin"       : ("menuBottomMargin Cut", "menuBottomMargin %"),
+        "menuLeftMargin"         : ("menuLeftMargin Cut", "menuLeftMargin %"),
+        "menuRightMargin"        : ("menuRightMargin Cut", "menuRightMargin %"),
+
+        "headerEnd"              : ("headerEnd Cut", "headerEnd %"),
+        "lineBegin"              : ("lineBegin Cut", "lineBegin %"),
+        "lineEnd"                : ("lineEnd Cut", "lineEnd %"),
+
+        "rankCol"                : ("rankCol Cut", "rankCol %"),
+        "levelCol"               : ("levelCol Cut", "levelCol %"),
+        "playerCol"              : ("playerCol Cut", "playerCol %"),
+        "enemyCol"               : ("enemyCol Cut", "enemyCol %"),
+        "percentageCol"          : ("percentageCol Cut", "percentageCol %"),
+        "starsCol"               : ("starsCol Cut", "starsCol %")
+    }
+
+    def to_dict(self) -> dict:
+        '''Convert the image measurements to a dictionary for JSON serialization.'''
+        out: dict[str, float] = {}
+        for attr, (slice_key, percent_key) in self.imageMeasurementTable.items():
+            slc = getattr(self, attr)
+            if slc is None:
+                continue
+            out[slice_key]  = round(slc.cut, 5)
+            out[percent_key] = round(slc.percentage, 5)
+        return out
+
+    def update_from_dict(self, measurements: dict) -> None:
+        '''Update the image measurements from a dictionary of measurements.'''
+        for attr, (cut_key, pct_key) in self.imageMeasurementTable.items():
+            cut_val = measurements.get(cut_key)
+            pct_val = measurements.get(pct_key)
+
+            # nothing stored in JSON – skip
+            if cut_val is None or pct_val is None:
+                continue
+
+            slc = getattr(self, attr)
+            if slc is None:                           # create it on-the-fly
+                slc = imageSlice(int(cut_val), 1)     # dummy end - we’ll
+                setattr(self, attr, slc)              # keep percentage from JSON
+
+            slc.cut        = int(cut_val)
+            slc.percentage = float(pct_val)
+
+    def outside_range(self, s: "currentState", measuredPct: float, expectedField: str) -> bool:
+        """Check if the actual cut is within the expected range."""
+        highRange = s.presets.errMarg
+        lowRange = 2 - s.presets.errMarg
+
+        expectedPct = getattr(self, expectedField).percentage
+        print(f"Checking if {measuredPct} is outside range of {expectedPct} with low {expectedPct * lowRange} and high {expectedPct * highRange}")
+        return not (expectedPct * lowRange <= measuredPct <= expectedPct * highRange)
+
+
+    def __init__(self, s: "currentState", measurements_from_file: dict = {}):
+        self.menuTopMargin: imageSlice | None    = imageSlice(s.menuTopMargin, s.srcDimensions[0]) if (s.menuTopMargin and s.srcDimensions is not None) else None
+        self.menuBottomMargin: imageSlice | None = imageSlice(s.menuBottomMargin, s.srcDimensions[0], "end") if (s.menuBottomMargin and s.srcDimensions is not None) else None
+        self.menuLeftMargin: imageSlice | None   = imageSlice(s.menuLeftMargin, s.srcDimensions[1]) if (s.menuLeftMargin and s.srcDimensions is not None) else None
+        self.menuRightMargin: imageSlice | None  = imageSlice(s.menuRightMargin, s.srcDimensions[1], "end") if (s.menuRightMargin and s.srcDimensions is not None) else None
+
+        self.headerEnd: imageSlice | None        = imageSlice(s.headerEnd, s.menuDimensions[0]) if (s.headerEnd and s.menuDimensions is not None) else None
+        self.lineBegin: imageSlice | None        = imageSlice(s.lineBegin, s.menuDimensions[1]) if (s.lineBegin and s.menuDimensions is not None) else None
+        self.lineEnd: imageSlice | None          = imageSlice(s.lineEnd, s.menuDimensions[1], "end") if (s.lineEnd and s.menuDimensions is not None) else None
+
+        self.rankCol: imageSlice | None          = imageSlice(s.rankCol, s.attackLinesDimensions[1]) if (s.rankCol and s.attackLinesDimensions is not None) else None
+        self.levelCol: imageSlice | None         = imageSlice(s.levelCol, s.attackLinesDimensions[1]) if (s.levelCol and s.attackLinesDimensions is not None) else None
+        self.playerCol: imageSlice | None        = imageSlice(s.playerCol, s.attackLinesDimensions[1]) if (s.playerCol and s.attackLinesDimensions is not None) else None
+        self.enemyCol: imageSlice | None         = imageSlice(s.enemyCol, s.attackLinesDimensions[1]) if (s.enemyCol and s.attackLinesDimensions is not None) else None
+        self.percentageCol: imageSlice | None    = imageSlice(s.percentageCol, s.attackLinesDimensions[1]) if (s.percentageCol and s.attackLinesDimensions is not None) else None
+        self.starsCol: imageSlice | None         = imageSlice(s.starsCol, s.attackLinesDimensions[1]) if (s.starsCol and s.attackLinesDimensions is not None) else None
+
+        if measurements_from_file:
+            self.update_from_dict(measurements_from_file)
 
 def _float_or_default(settings: dict, key: str, default: float) -> float:
     """Helper to get a float from settings dict, or return default if not present or not convertible."""
@@ -83,6 +174,7 @@ class processingPresets:
         }
         preprocessing_advanced_settings = {
             #  attr                      json-key-key
+            "errMarg"             : "Fall-back Tolerance Margin",
             "lightnessUpperBound" : "Preprocessing Light Upperbound",
             "lightnessLowerBound" : "Preprocessing Light Lowerbound",
             "BLOB_TH"             : "Blob to Remove Size Percentage",
@@ -119,6 +211,7 @@ class processingPresets:
         self.STAR_MARGIN          = 5
         self.PX_MARGIN            = 10
 
+
         # Image Measurement 
         self.col_src_avg_TH       = sampleImagePresets(0.2, 0.99)
         self.row_src_avg_TH       = sampleImagePresets(0.2, 0.99)
@@ -138,6 +231,7 @@ class processingPresets:
         self.no_star_TH           = sampleImagePresets(0.01, 1.00)
 
         # Preprocessing Presets
+        self.errMarg = 1.2
         self.lightnessUpperBound = 150
         self.lightnessLowerBound = 0
         self.OUTLINE_UPPER_BGR    = np.array([self.lightnessUpperBound, 
@@ -169,7 +263,6 @@ class processingPresets:
             self.lightRowTH    # Checks for >= 0.80
         ]
 
-
         self.TO_DIGIT = str.maketrans({'l':'1', 'I':'1',
                                        '|':'1', 'L':'1',
                                        'T':'1', 'g':'9',
@@ -181,5 +274,42 @@ class processingPresets:
                                        'd':'1'})
         
         self.DIGIT_GLYPHS = "0-9lLiIoOsSzdeZWagTB|L"
+
+        self.update_from_dict(settings_from_file)
+
+class gameRulePresets:
+    """Holds the game rule presets for Star Bonuses and Penalties."""
+
+    def update_from_dict(self, settings: dict):
+        """
+        Updates the class attributes from a loaded settings dictionary.
+        Uses .get(key, default_value) to safely access the dictionary.
+        """
+        print("Updating presets from loaded settings...")
+
+        
+        gamerule_settings = {
+            #  attr                      json-key-key
+            "noThreeStarDroppingPenalty"      : "Incomplete Clean Dropping Penalty",
+            "noThreeStarDroppingThreshold"    : "Incomplete Clean Dropping Rank Difference",
+            "droppingForFirstAttackPenalty"   : "Stealing Lower Target Penalty",
+            "droppingForFirstAttackThreshold" : "Stealing Lower Target Rank Difference",
+            "successfulJumpBonus"             : "New Star on Higher Target Bonus",
+            "successfulJumpThreshold"         : "New Star on Higher Target Rank Difference"
+        }
+
+        for attr_name, json_key in gamerule_settings.items():
+            setattr(self, attr_name, settings.get(json_key, getattr(self, attr_name)))
+
+    
+    def __init__(self, settings_from_file: dict = {}):
+        self.noThreeStarDroppingPenalty = -1
+        self.noThreeStarDroppingThreshold = -5
+
+        self.droppingForFirstAttackPenalty = "Negate earned stars"
+        self.droppingForFirstAttackThreshold = -10
+
+        self.successfulJumpBonus = 1
+        self.successfulJumpThreshold = 5
 
         self.update_from_dict(settings_from_file)

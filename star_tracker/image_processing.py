@@ -1,6 +1,9 @@
+# File: star_tracker/image_processing.py
 import cv2, numpy as np, pytesseract, sys
 
-from .data_structures import attackData, playerData, currentState
+from .state import currentState, print_to_gui
+
+from .player_utils import playerData, attackData
 from .preprocessing import sample_image, measure_image, debug_image, debug_oscilloscope
 from .ocr import auto_correct_num, auto_correct_player, score_from_stars, preprocess_line
 
@@ -10,8 +13,8 @@ STAR_MARGIN = 5
 def process_rank(s: currentState) -> int|None:
     """Process the rank from the attack lines and return integer rank."""
     if s.attackLines is None or s.rankCol is None:
-        print(f"Error: attackLines or rankCol is None for image \
-              {s.fileNum}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: attackLines or rankCol is None for image \
+              {s.fileNum}. Exiting.")
         sys.exit(1)
     # Crop rank from the attack line and preprocess it
     attackCrop = s.attackLines[s.lineTop:s.lineBottom, s.rankCol.begin:s.rankCol.end]
@@ -23,16 +26,16 @@ def process_rank(s: currentState) -> int|None:
 
     # If none output, image is likely none as well
     if rankInt is None:
-        print(f"Warning: Could not read rank from image {s.fileNum}. \
-              Text: {rankTxt}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Warning: Could not read rank from image {s.fileNum}. \
+              Text: {rankTxt}. Exiting.")
         debug_image(s, rankPreproc, "rank_preproc_error")
     return(rankInt)
 
 def process_player(s: currentState) -> str:
     """Process the player name from the attack lines and return string of player name."""
     if s.attackLines is None or s.playerCol is None:
-        print(f"Error: attackLines or playerCol is None for image \
-              {s.fileNum}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: attackLines or playerCol is None for image \
+              {s.fileNum}. Exiting.")
         sys.exit(1)
         
     # Crop the player name from the attack lines and preprocess it
@@ -43,8 +46,8 @@ def process_player(s: currentState) -> str:
     playerTXT = pytesseract.image_to_string(playerPreproc, config=s.PLAYER_CONFIG)
     playerName = auto_correct_player(s, playerTXT)
     if playerName is None:
-        print(f"Error: Could not read player name from image {s.fileNum}. \
-              Text: {playerTXT}. Continuing.", file=sys.stderr)
+        print_to_gui(s, f"Error: Could not read player name from image {s.fileNum}. \
+              Text: {playerTXT}. Continuing.")
         debug_image(s, playerPreproc, "player_preproc_error")
         debug_image(s, playerCrop, "player_crop_error")
         sys.exit(1)
@@ -53,8 +56,8 @@ def process_player(s: currentState) -> str:
 def process_attack(s: currentState, attackNum: int) -> attackData:
     """Process a single attack line and return an attackData object."""
     if s.attackLines is None or s.enemyCol is None or s.starsCol is None:
-        print(f"Error: attackLines, enemyCol or starsCol is None for image \
-              {s.fileNum}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: attackLines, enemyCol or starsCol is None for image \
+              {s.fileNum}. Exiting.")
         sys.exit(1)
 
     # Split top half or bottom half of the row depending on attack number
@@ -75,8 +78,8 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
     enemyRankBegin, enemyNameBegin = measure_image(attackCrop, text_menu_TH, 
                                                    behavior="absolute threshold, minimum, by col, first fall, next, rise")
     if enemyRankBegin == 0 or enemyNameBegin == 0:
-        print(f"Error: Could not detect enemy rank or name begin at positions {enemyRankBegin}, \
-              {enemyNameBegin} for absolute threshold minimum of {text_menu_TH}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: Could not detect enemy rank or name begin at positions {enemyRankBegin}, \
+              {enemyNameBegin} for absolute threshold minimum of {text_menu_TH}. Exiting.")
         
         if s.debug_name is not None:
             debug_oscilloscope(s, attackCrop.copy(), f"{s.debug_name[0]}_{s.lineNum + s.fileNum}\
@@ -91,8 +94,8 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
                                        None, s.presets.preproc_attack_avgL.repCharTol) * s.presets.preproc_attack_avgL.filterScale
     # If white, attack line is empty -> no attack
     if preproc_attack_avgL == 1.0:
-        print(f"Warning: No attack data found in image {s.fileNum}. \
-              Average Lightness: {preproc_attack_avgL}. Continuing.", file=sys.stderr)
+        print_to_gui(s, f"Warning: No attack data found in image {s.fileNum}. \
+              Average Lightness: {preproc_attack_avgL}. Continuing.")
         return(attackData(None, "No attack", "___"))
     else:
         # Pytesseract does its best to read the enemy rank
@@ -100,8 +103,8 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
         enemyRankTxt  = pytesseract.image_to_string(enemyRankCrop, config=s.RANK_CONFIG)
         enemy_rank = auto_correct_num(s,enemyRankTxt)
         if enemy_rank is None:
-            print(f"Warning: Could not read enemy rank from image {s.fileNum}. \
-                  Text: {enemyRankTxt}. Continuing.", file=sys.stderr)
+            print_to_gui(s, f"Warning: Could not read enemy rank from image {s.fileNum}. \
+                  Text: {enemyRankTxt}. Continuing.")
             debug_image(s, enemyRankCrop, "attack_rank_crop_error")
         # Pytesseract reads the enemy name
         # ------------------------------------------------- Enemy Name Processing -------------------------------------------------
@@ -116,15 +119,15 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
                 ranks = set(s.enemiesRanks.values())
                 top = max(ranks) if ranks else 0
                 enemy_rank = next((n for n in range(top, 0, -1) if n not in ranks), top + 1)
-            print(f"Estimating enemy rank for {enemy.strip('\n')} as {enemy_rank}")
+            print_to_gui(s, f"Estimating enemy rank for {enemy.strip('\n')} as {enemy_rank}")
 
         # ------------------------------------------------- Enemy Score Processing -------------------------------------------------
         # Scan vertically to remove white space above and below stars
         starsTop, starsBottom = measure_image(scoreLine, s.presets.BLACK_TH, 
                                               behavior="stat comparison, min < average, by row, divergence, last, convergence")
         if starsTop == 0 or starsBottom == 0: 
-            print(f"Warning: Could not detect top or bottom of stars line in image {s.fileNum}. \
-                   Missed fixed margin: {s.presets.BLACK_TH}. Exiting.", file=sys.stderr)
+            print_to_gui(s, f"Warning: Could not detect top or bottom of stars line in image {s.fileNum}. \
+                   Missed fixed margin: {s.presets.BLACK_TH}. Exiting.")
             debug_image(s, scoreLine[starsTop:starsBottom, :], f"attack{attackNum}StarsFinalCrop")
             debug_oscilloscope(s, scoreLine, f"{s.debug_name}_{str(s.lineNum + s.fileNum)} \
                                _stars{attackNum}_y_axis", None, axis="row")
@@ -142,7 +145,7 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
         if score.find("☆") != -1 and score.find("★") != -1 and score.find("★") > score.find("☆") or \
            score.find("★") != -1 and score.find("_") != -1 and score.find("★") > score.find("_") or \
            score.find("☆") != -1 and score.find("_") != -1 and score.find("☆") > score.find("_"):
-            print(f"Error: Invalid Score of {score}. For image {s.fileNum}, player {s.lineNum}", file=sys.stderr)
+            print_to_gui(s, f"Error: Invalid Score of {score}. For image {s.fileNum}, player {s.lineNum}")
             if s.debug_name is not None:
                 debug_oscilloscope(s, scoreLine[starsTop:starsBottom, :], f"{s.debug_name[0]}_{str(s.lineNum + s.fileNum)}_stars{attackNum}_x_axis", None, axis="col")
             sys.exit(1)
@@ -158,14 +161,14 @@ def line_to_player(s: currentState) -> playerData:
     attack1 = process_attack(s, attackNum=1)
     attack2 = process_attack(s, attackNum=2)
 
-    return playerData(rank, player, [attack1, attack2])
+    return playerData(s, rank, player, [attack1, attack2])
 
 def process_player_data(s: currentState, currPlayer: playerData) -> None:
     '''Given a playerData Object, file into data structures accordingly.'''
     # If multiaccount detected with identical name, append number to name
     baseName = currPlayer.name
     if s.multiAccounters is None:
-        print(f"Error: multiAccounters is None for image {s.fileNum}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: multiAccounters is None for image {s.fileNum}. Exiting.")
         sys.exit(1)
     aliases = s.multiAccounters.get(baseName, [])
     # If new player, store attacks and remember in war player array
@@ -179,7 +182,7 @@ def process_player_data(s: currentState, currPlayer: playerData) -> None:
             while s.war_players[j] is not None:
                 j += 1
             currPlayer.rank = j
-            print(f"Estimating rank for {currPlayer.name.strip('\n')} as {currPlayer.rank}.")
+            print_to_gui(s, f"Estimating rank for {currPlayer.name.strip('\n')} as {currPlayer.rank}.")
 
         # If name belongs to a multiaccount, assign the next alias in the multiAccounters file
         if (aliases and currPlayer.rank is not None and s.war_players[currPlayer.rank] is None \
@@ -195,8 +198,8 @@ def process_player_data(s: currentState, currPlayer: playerData) -> None:
             s.war_players[currPlayer.rank] = currPlayer
             s.playersSeen.add(currPlayer.name)
         else:
-            print(f"Error: currPlayer.rank is None for player {currPlayer.name}. \
-                  Skipping assignment.", file=sys.stderr)
+            print_to_gui(s, f"Error: currPlayer.rank is None for player {currPlayer.name}. \
+                  Skipping assignment.")
             sys.exit(1)
         
         # Add the current player's targets to the enemiesSeen set and dictionary
@@ -205,13 +208,13 @@ def process_player_data(s: currentState, currPlayer: playerData) -> None:
                 if attack.target is not None and attack.target not in s.enemiesSeen:
                     s.enemiesSeen.add(attack.target)
                     s.enemiesRanks[attack.target] = attack.rank
-        if s.verbose: print(currPlayer.tabulate_player())
+        print_to_gui(s, currPlayer.tabulate_player())
 
 
 def image_to_player_data(s: currentState) -> None:
     '''Process the attack lines image to extract player data.'''
     if s.attackLines is None or s.attackLinesL is None:
-        print(f"Error: attackLines or attackLinesL is None for image {s.fileNum}. Exiting.", file=sys.stderr)
+        print_to_gui(s, f"Error: attackLines or attackLinesL is None for image {s.fileNum}. Exiting.")
         sys.exit(1)
     # Height of total menu lines
     s.linesHeight = s.attackLines.shape[0]
@@ -229,8 +232,8 @@ def image_to_player_data(s: currentState) -> None:
         s.lineBottom, s.nextLineTop = measure_image(s.attackLinesL[s.lineTop + PX_MARGIN:, :], 
                                                     new_line_TH, behavior="absolute threshold, minimum, by row, first rise, next, fall")
         if s.nextLineTop == 0:
-            print(f"Error: Could not detect bottom of current line or top of next line in image \
-                    {s.fileNum}. Missing fixed margin: {new_line_TH}. Exiting.", file=sys.stderr); sys.exit(1)
+            print_to_gui(s, f"Error: Could not detect bottom of current line or top of next line in image \
+                    {s.fileNum}. Missing fixed margin: {new_line_TH}. Exiting."); sys.exit(1)
             debug_oscilloscope(s.attackLinesL.copy(), f"{s.debug_name[0]}_{s.fileNum}_top_bottom_margin_error\
                                 _{s.debug_name[1]}", None, s.OUT_DIR, axis="row")
 
