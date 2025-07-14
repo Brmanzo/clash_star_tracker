@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .state import currentState  
+    from star_tracker.state import currentState  
 
 class dataColumn:
     '''Records the absolute position of the column in the original image

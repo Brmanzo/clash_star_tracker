@@ -1,11 +1,11 @@
 # File: star_tracker/image_processing.py
 import cv2, numpy as np, pytesseract, sys
 
-from .state import currentState, print_to_gui
+from star_tracker.state import currentState, print_to_gui
 
-from .player_utils import playerData, attackData
-from .preprocessing import sample_image, measure_image, debug_image, debug_oscilloscope
-from .ocr import auto_correct_num, auto_correct_player, score_from_stars, preprocess_line
+from star_tracker.player_utils import playerData, attackData
+from star_tracker.preprocessing import sample_image, measure_image, debug_image, debug_oscilloscope
+from star_tracker.ocr import auto_correct_num, auto_correct_player, score_from_stars, preprocess_line
 
 PX_MARGIN = 10
 STAR_MARGIN = 5
@@ -44,7 +44,7 @@ def process_player(s: currentState) -> str:
 
     # Specify single line page segmentation, and try to match with submitted player names
     playerTXT = pytesseract.image_to_string(playerPreproc, config=s.PLAYER_CONFIG)
-    playerName = auto_correct_player(s, playerTXT)
+    playerName = auto_correct_player(s, playerTXT, enemy=False, confidence_threshold=s.presets.PLAYERS_CONFIDENCE)
     if playerName is None:
         print_to_gui(s, f"Error: Could not read player name from image {s.fileNum}. \
               Text: {playerTXT}. Continuing.")
@@ -109,7 +109,7 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
         # Pytesseract reads the enemy name
         # ------------------------------------------------- Enemy Name Processing -------------------------------------------------
         enemyNameTxt = pytesseract.image_to_string(attackPreproc[:, enemyNameBegin:], config=s.PLAYER_CONFIG)
-        enemy = auto_correct_player(s, enemyNameTxt, enemy=True)
+        enemy = auto_correct_player(s, enemyNameTxt, enemy=True, confidence_threshold=s.presets.ENEMIES_CONFIDENCE)
         if enemy_rank is None and enemy is not None:
             # If we couldn't read the enemy rank, but we have the name, assign it the cannonical rank
             if enemy in s.enemiesSeen:
@@ -163,14 +163,53 @@ def line_to_player(s: currentState) -> playerData:
 
     return playerData(s, rank, player, [attack1, attack2])
 
+def alias_available(canon: str, s: currentState) -> str | None:
+    """
+    Return the next unused alias for this canon,
+    or None if all predefined aliases are taken.
+    """
+    if s.multiAccounters is None or canon not in s.multiAccounters:
+        return None
+    variants = s.multiAccounters[canon]          # ["Kit 1", "Kit 2", "Kit 3"]
+    used     = s.seenAliases.setdefault(canon, set())
+    for v in variants:
+        if v not in used:
+            return v
+    return None 
+
 def process_player_data(s: currentState, currPlayer: playerData) -> None:
     '''Given a playerData Object, file into data structures accordingly.'''
     # If multiaccount detected with identical name, append number to name
-    baseName = currPlayer.name
     if s.multiAccounters is None:
         print_to_gui(s, f"Error: multiAccounters is None for image {s.fileNum}. Exiting.")
         sys.exit(1)
-    aliases = s.multiAccounters.get(baseName, [])
+    canon = None
+    if s.aliasMap is not None:
+        canon = s.aliasMap.get(currPlayer.name.lower())   # None if not a family we track
+
+    if canon is not None:                       # belongs to a tracked family
+
+        # A) same rank already occupied by this family?  →  reuse stored name
+        if (
+            currPlayer.rank is not None
+            and currPlayer.rank < len(s.war_players)
+            and (existing := s.war_players[currPlayer.rank]) is not None
+            and s.aliasMap is not None
+            and s.aliasMap.get(existing.name.lower()) == canon
+        ):
+            currPlayer.name = existing.name
+
+        # B) otherwise we need an alias that is still unused
+        else:
+            alias = alias_available(canon, s)
+
+            if alias is None:
+                # We have already used every alias in the JSON (Kit 1-3, James #1-3…)
+                # → ignore this extra account entirely.
+                return                      # <-- exit process_player_data early
+            else:
+                currPlayer.name = alias
+                s.seenAliases[canon].add(alias)
     # If new player, store attacks and remember in war player array
     if currPlayer.name and currPlayer.name not in s.playersSeen:
         # If player exists, but OCR didnt produce a rank, and rank is currently unseen
@@ -184,15 +223,6 @@ def process_player_data(s: currentState, currPlayer: playerData) -> None:
             currPlayer.rank = j
             print_to_gui(s, f"Estimating rank for {currPlayer.name.strip('\n')} as {currPlayer.rank}.")
 
-        # If name belongs to a multiaccount, assign the next alias in the multiAccounters file
-        if (aliases and currPlayer.rank is not None and s.war_players[currPlayer.rank] is None \
-            and currPlayer.name not in s.playersSeen):
-            currPlayer.name = aliases.pop(0)
-            if not aliases:
-                s.multiAccounters[baseName] = []
-            if len(s.multiAccounters[baseName]) == 0:
-                s.playersSeen.add(baseName)
-
         # If a rank was able to be assigned, add player to war_players
         if currPlayer.rank is not None:
             s.war_players[currPlayer.rank] = currPlayer
@@ -205,9 +235,21 @@ def process_player_data(s: currentState, currPlayer: playerData) -> None:
         # Add the current player's targets to the enemiesSeen set and dictionary
         if currPlayer.attacks is not None:
             for attack in currPlayer.attacks:
-                if attack.target is not None and attack.target not in s.enemiesSeen:
-                    s.enemiesSeen.add(attack.target)
+                # If new enemy exists but does not have a rank, but was seen before, assign it the global rank
+                if attack.rank is None:
+                    if attack.target in s.enemiesSeen:
+                        attack.rank = s.enemiesRanks.get(attack.target, None)
+                    else:
+                        # And the rank is None, try 
+                        j = 1
+                        while j < len(s.war_enemies) and s.war_enemies[j] is not None:
+                            j += 1
+                        attack.rank = j
+                        s.war_enemies[j] = attack.target
+                if attack.rank is not None:
+                    s.war_enemies[attack.rank] = attack.target
                     s.enemiesRanks[attack.target] = attack.rank
+                s.enemiesSeen.add(attack.target)
         print_to_gui(s, currPlayer.tabulate_player())
 
 

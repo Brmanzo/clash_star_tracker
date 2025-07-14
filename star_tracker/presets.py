@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:                           # only during “mypy / pylance”
-    from .state import currentState 
+    from star_tracker.state import currentState 
 
 class dataColumn:
     '''Records the absolute position of the column in the original image
@@ -59,16 +59,17 @@ class imageMeasurements:
         "lineBegin"              : ("lineBegin Cut", "lineBegin %"),
         "lineEnd"                : ("lineEnd Cut", "lineEnd %"),
 
+        "rankEnd"                : ("rankEnd Cut", "rankEnd %"),
+        "levelEnd"               : ("levelEnd Cut", "levelEnd %"),
+        "playerEnd"              : ("playerEnd Cut", "playerEnd %"),
         "enemyStart"             : ("enemyStart Cut", "enemyStart %"),
         "starsColEnd"            : ("starsColEnd Cut", "starsColEnd %"),
+        "enemyEnd"               : ("enemyEnd Cut", "enemyEnd %"),
         "percentageBegin"        : ("percentageBegin Cut", "percentageBegin %"),
-
-        "rankCol"                : ("rankCol Cut", "rankCol %"),
-        "levelCol"               : ("levelCol Cut", "levelCol %"),
-        "playerCol"              : ("playerCol Cut", "playerCol %"),
-        "enemyCol"               : ("enemyCol Cut", "enemyCol %"),
-        "percentageCol"          : ("percentageCol Cut", "percentageCol %"),
-        "starsCol"               : ("starsCol Cut", "starsCol %")
+        "firstStar"              : ("firstStar Cut", "firstStar %"),
+        "starsBegin"             : ("starsBegin Cut", "starsBegin %"),
+        "percentageEnd"          : ("percentageEnd Cut", "percentageEnd %"),
+        "realStarsEnd"           : ("realStarsEnd Cut", "realStarsEnd %")
     }
 
     def to_dict(self) -> dict:
@@ -106,7 +107,7 @@ class imageMeasurements:
         lowRange = 2 - s.presets.errMarg
 
         expectedPct = getattr(self, expectedField).percentage
-        print(f"Checking if {measuredPct} is outside range of {expectedPct} with low {expectedPct * lowRange} and high {expectedPct * highRange}")
+        # print(f"Checking if {measuredPct} is outside range of {expectedPct} with low {expectedPct * lowRange} and high {expectedPct * highRange}")
         return not (expectedPct * lowRange <= measuredPct <= expectedPct * highRange)
 
 
@@ -120,16 +121,17 @@ class imageMeasurements:
         self.lineBegin: imageSlice | None        = imageSlice(s.lineBegin, s.menuDimensions[1]) if (s.lineBegin and s.menuDimensions is not None) else None
         self.lineEnd: imageSlice | None          = imageSlice(s.lineEnd, s.menuDimensions[1], "end") if (s.lineEnd and s.menuDimensions is not None) else None
 
+        self.rankEnd: imageSlice | None          = imageSlice(s.rankEnd, s.attackLinesDimensions[1]) if (s.rankEnd and s.attackLinesDimensions is not None) else None
+        self.levelEnd: imageSlice | None         = imageSlice(s.levelEnd, s.attackLinesDimensions[1]) if (s.levelEnd and s.attackLinesDimensions is not None) else None
+        self.playerEnd: imageSlice | None        = imageSlice(s.playerEnd, s.attackLinesDimensions[1]) if (s.playerEnd and s.attackLinesDimensions is not None) else None
         self.enemyStart: imageSlice | None       = imageSlice(s.enemyStart, s.attackLinesDimensions[1]) if (s.enemyStart and s.attackLinesDimensions is not None) else None
         self.starsColEnd: imageSlice | None      = imageSlice(s.starsColEnd, s.attackLinesDimensions[1], "end") if (s.starsColEnd and s.attackLinesDimensions is not None) else None
+        self.enemyEnd: imageSlice | None         = imageSlice(s.enemyEnd, s.attackLinesDimensions[1], "end") if (s.enemyEnd and s.attackLinesDimensions is not None) else None
         self.percentageBegin: imageSlice | None  = imageSlice(s.percentageBegin, s.attackLinesDimensions[1]) if (s.percentageBegin and s.attackLinesDimensions is not None) else None
-
-        self.rankCol: imageSlice | None          = imageSlice(s.rankCol, s.attackLinesDimensions[1]) if (s.rankCol and s.attackLinesDimensions is not None) else None
-        self.levelCol: imageSlice | None         = imageSlice(s.levelCol, s.attackLinesDimensions[1]) if (s.levelCol and s.attackLinesDimensions is not None) else None
-        self.playerCol: imageSlice | None        = imageSlice(s.playerCol, s.attackLinesDimensions[1]) if (s.playerCol and s.attackLinesDimensions is not None) else None
-        self.enemyCol: imageSlice | None         = imageSlice(s.enemyCol, s.attackLinesDimensions[1]) if (s.enemyCol and s.attackLinesDimensions is not None) else None
-        self.percentageCol: imageSlice | None    = imageSlice(s.percentageCol, s.attackLinesDimensions[1]) if (s.percentageCol and s.attackLinesDimensions is not None) else None
-        self.starsCol: imageSlice | None         = imageSlice(s.starsCol, s.attackLinesDimensions[1]) if (s.starsCol and s.attackLinesDimensions is not None) else None
+        self.firstStar: imageSlice | None        = imageSlice(s.firstStar, s.attackLinesDimensions[1]) if (s.firstStar and s.attackLinesDimensions is not None) else None
+        self.starsBegin: imageSlice | None       = imageSlice(s.starsBegin, s.attackLinesDimensions[1]) if (s.starsBegin and s.attackLinesDimensions is not None) else None
+        self.percentageEnd: imageSlice | None    = imageSlice(s.percentageEnd, s.attackLinesDimensions[1], "end") if (s.percentageEnd and s.attackLinesDimensions is not None) else None
+        self.realStarsEnd: imageSlice | None     = imageSlice(s.realStarsEnd, s.attackLinesDimensions[1], "end") if (s.realStarsEnd and s.attackLinesDimensions is not None) else None
 
         if measurements_from_file:
             self.update_from_dict(measurements_from_file)
@@ -183,6 +185,8 @@ class processingPresets:
         preprocessing_advanced_settings = {
             #  attr                      json-key-key
             "errMarg"             : "Fall-back Tolerance Margin",
+            "ENEMIES_CONFIDENCE"  : "Enemies Autocorrect Confidence Threshold",
+            "PLAYERS_CONFIDENCE"  : "Players AutocorrectConfidence Threshold",
             "lightnessUpperBound" : "Preprocessing Light Upperbound",
             "lightnessLowerBound" : "Preprocessing Light Lowerbound",
             "BLOB_TH"             : "Blob to Remove Size Percentage",
@@ -240,6 +244,8 @@ class processingPresets:
 
         # Preprocessing Presets
         self.errMarg = 1.2
+        self.PLAYERS_CONFIDENCE = 65
+        self.ENEMIES_CONFIDENCE = 65
         self.lightnessUpperBound = 150
         self.lightnessLowerBound = 0
         self.OUTLINE_UPPER_BGR    = np.array([self.lightnessUpperBound, 
@@ -293,7 +299,7 @@ class gameRulePresets:
         Updates the class attributes from a loaded settings dictionary.
         Uses .get(key, default_value) to safely access the dictionary.
         """
-        print("Updating presets from loaded settings...")
+        print("Updating game rules from loaded settings...")
 
         
         gamerule_settings = {

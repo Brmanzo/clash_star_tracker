@@ -3,8 +3,8 @@
 import cv2, numpy as np, re, sys
 from fuzzywuzzy import process, utils
 
-from .preprocessing import sample_image
-from .state import currentState, print_to_gui
+from star_tracker.preprocessing import sample_image
+from star_tracker.state import currentState, print_to_gui
 
 
 def preprocess_line(s: currentState, img_bgr: np.ndarray, line:bool) -> np.ndarray:

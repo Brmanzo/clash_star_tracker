@@ -3,8 +3,8 @@ import FreeSimpleGUI as sg, json, numpy as np, shutil, sys
 from pathlib import Path
 from typing import List, Optional
 
-from .presets import processingPresets, gameRulePresets, dataColumn, imageMeasurements
-from .player_utils import playerData
+from star_tracker.presets import processingPresets, gameRulePresets, dataColumn, imageMeasurements
+from star_tracker.player_utils import playerData, attackData
 
 class currentState:
     """Holds the current state of the application, including settings, data structures, and iterators."""
@@ -57,12 +57,17 @@ class currentState:
         
         # Data structures
         self.players = []
-        self.multiAccounters = None
+        self.multiAccounters: dict[str, list[str]] | None = None
+        self.aliasMap       : dict[str, str] | None = None
+        self.seenAliases:    dict[str, set[str]]     = {}
+        self.multiNextIdx   : dict[str, int] = {}
+
         self.enemies = []
         self.playersSeen = set()
         self.enemiesSeen = set()
         self.enemiesRanks = {}
         self.war_players:List[Optional[playerData]] = [None] * self.MAX_WAR_PLAYERS
+        self.war_enemies: list[Optional[str]] = [None]*(self.MAX_WAR_PLAYERS+1)
         self.new_scores: dict[str, int] = {}
         self.editable_lines: list[str] = []
 
@@ -74,14 +79,22 @@ class currentState:
         self.menuRightMargin: int | None = None
         self.menuDimensions: tuple[int, int] | None = None
 
-        self.enemyStart: int | None = None
-        self.starsColEnd: int | None = None
-        self.percentageBegin: int | None = None
-
         self.headerEnd: int | None = None
         self.lineBegin: int | None = None
         self.lineEnd: int | None = None
         self.attackLinesDimensions: tuple[int, int] | None = None
+
+        self.rankEnd: int | None = None
+        self.levelEnd: int | None = None
+        self.playerEnd: int | None = None
+        self.enemyStart: int | None = None
+        self.starsColEnd: int | None = None
+        self.enemyEnd: int | None = None
+        self.percentageBegin: int | None = None
+        self.firstStar: int | None = None
+        self.starsBegin: int | None = None
+        self.percentageEnd: int | None = None
+        self.realStarsEnd: int | None = None
 
         # Column data
         self.rankCol: dataColumn|None = None

@@ -2,10 +2,12 @@
 import numbers
 import cv2, numpy as np
 from typing import Tuple, List
+import matplotlib
+matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
-from .state import currentState, print_to_gui
-from .presets import dataColumn
+from star_tracker.state import currentState, print_to_gui
+from star_tracker.presets import dataColumn
 
 def get_metrics(img_slice: np.ndarray) -> Tuple[float, float, float]:
     '''Helper to return the requested stat per slice of an image.'''

@@ -10,7 +10,7 @@ from importlib.metadata import version, PackageNotFoundError
 # Public API re-exports
 # ---------------------------------------------------------------------------
 
-from .main import main
+from star_tracker.main import main
 
 __all__ = [
     "main",

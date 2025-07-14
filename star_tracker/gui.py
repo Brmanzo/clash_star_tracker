@@ -4,12 +4,12 @@ from typing import Optional, Tuple
 from pathlib import Path
 from collections import OrderedDict
 
-from .state import currentState
-from .presets import dataColumn, imageMeasurements
-from .score_writeback import load_player_list
-from .image_measurement import menu_crop, measure_data_columns
-from .image_processing import image_to_player_data
-from .score_writeback import load_history, merge_new_war, rebuild_totals, write_history
+from star_tracker.state import currentState
+from star_tracker.presets import dataColumn, imageMeasurements
+from star_tracker.score_writeback import load_player_list
+from star_tracker.image_measurement import menu_crop, measure_data_columns
+from star_tracker.image_processing import image_to_player_data
+from star_tracker.score_writeback import load_history, merge_new_war, rebuild_totals, write_history
 
 def print_to_gui(s: currentState, text_to_print: str):
     """A helper function to print text to the Multiline element."""
@@ -49,7 +49,7 @@ def print_leaderboard(s: currentState, table: dict, totals: dict, width_name:int
     print_to_gui(s, "\n=== Current Leaderboard ===")
     for i, (player, _) in enumerate(ordered, start=1):
         total_score = totals[player]
-        line = f"{i:>2}. {player:<{width_name}} Total Score: {total_score}"
+        line = f"{i:>2}. {player:<{width_name}} {total_score}"
         print_to_gui(s, line)
 
 def write_batch(s: currentState, advanced_setting: bool) -> None:
@@ -351,6 +351,18 @@ def show_advanced_settings_window(s: currentState, settings_path: Path):
 
     window.close()
 
+def build_alias_map(multi_json: dict[str, list[str]]) -> dict[str, str]:
+    """
+    alias → canonical  (all lowercase for robust lookup)
+    """
+    amap: dict[str, str] = {}
+    for canon, variants in multi_json.items():
+        canon_low = canon.lower()
+        amap[canon_low] = canon            # base name maps to itself
+        for v in variants:
+            amap[v.lower()] = canon
+    return amap
+
 
 def run_gui(s: currentState) -> None:
     """Run the GUI for Clash Star Tracker."""
@@ -590,7 +602,31 @@ def run_gui(s: currentState) -> None:
                         # Load player list and multi-account data
             s.players = load_player_list(players_filepath)
             with open(multi_filepath, encoding="utf-8") as f:
-                s.multiAccounters = json.load(f)
+                text = f.read()
+
+            if text.strip():                               # non-empty file
+                try:
+                    s.multiAccounters = json.loads(text)
+                    if not isinstance(s.multiAccounters, dict):
+                        s.multiAccounters = {}
+                except json.JSONDecodeError as e:
+                    print_to_gui(s, f"Malformed JSON in {multi_filepath}: {e}")
+                    s.multiAccounters = {}
+            else:
+                s.multiAccounters = {}                     # empty file → no multi-accounts
+
+            # -------- rebuild helper tables ------------------------------------------
+            # alias → canonical
+            if not isinstance(s.multiAccounters, dict):
+                s.multiAccounters = {}
+            s.aliasMap = {
+                v.lower(): canon
+                for canon, variants in s.multiAccounters.items()
+                for v in [canon, *variants]
+            }
+
+            # which aliases are already in use
+            s.seenAliases = {canon: set() for canon in s.multiAccounters}
 
             s.file_list = [Path(p) for p in images_filepath.split(';')]
 

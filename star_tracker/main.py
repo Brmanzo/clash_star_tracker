@@ -3,8 +3,8 @@
 # ------------------------------------------------------------
 import pytesseract, sys
 
-from .state import currentState
-from .gui import run_gui
+from star_tracker.state import currentState
+from star_tracker.gui import run_gui
 # ------------------------------------------------------------
 
 state = currentState()  # Initialize the current state
