@@ -64,6 +64,7 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
     rowSlice   = s.attackLines[s.lineTop:s.lineBottom, :]
     enemySlice = rowSlice[:, s.enemyCol.begin:s.enemyCol.end]
     starsSlice = rowSlice[:, s.starsCol.begin:s.starsCol.end]
+    print("here")
 
     # Slice the line in half to separate attacks 1 and 2
     currAttack  = np.array_split(enemySlice,  2, axis=0)[attackNum - 1]

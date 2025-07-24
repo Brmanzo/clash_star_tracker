@@ -146,6 +146,7 @@ def measure_rank(s: currentState, threshold: float) -> None:
                              behavior="relative threshold, average, by col, first fall, next, rise")[1]
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"RankEnd: {rankEnd}")
         failedRankEnd = m.outside_range(s, rankEnd/s.attackLinesDimensions[1], "rankEnd") or rankEnd >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedRankEnd:
             if failedRankEnd and m.rankEnd is not None:
@@ -169,6 +170,7 @@ def measure_level(s: currentState, threshold: float) -> None:
     
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"LevelEnd: {levelEnd}")
         failedLevelEnd = m.outside_range(s, levelEnd/s.attackLinesDimensions[1], "levelEnd") or levelEnd >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedLevelEnd:
             if failedLevelEnd and m.levelEnd is not None:
@@ -191,6 +193,7 @@ def measure_player(s:currentState, threshold: float) -> None:
                               behavior="relative threshold, average, by col, from start, next, fall")[1]
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"PlayerEnd: {playerEnd}")
         failedPlayerEnd = m.outside_range(s, (playerEnd + LOOK_AHEAD_MARGIN)/s.attackLinesDimensions[1], "playerEnd") or playerEnd >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedPlayerEnd:
             if failedPlayerEnd and m.playerEnd is not None:
@@ -214,6 +217,7 @@ def measure_enemy(s: currentState, threshold: float, col_al_global_min_TH: float
     
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"EnemyStart: {enemyStart}")
         failedEnemyStart = m.outside_range(s, enemyStart/s.attackLinesDimensions[1], "enemyStart") or enemyStart >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedEnemyStart:
             if failedEnemyStart and m.enemyStart is not None:
@@ -229,6 +233,7 @@ def measure_enemy(s: currentState, threshold: float, col_al_global_min_TH: float
     
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"StarsColEnd: {starsColEnd}")
         failedStarsColEnd = m.outside_range(s, starsColEnd/s.attackLinesDimensions[1], "starsColEnd") or starsColEnd >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedStarsColEnd:
             if failedStarsColEnd and m.starsColEnd is not None:
@@ -252,7 +257,8 @@ def measure_enemy(s: currentState, threshold: float, col_al_global_min_TH: float
     enemyEnd_abs = enemyEndSliceStart + enemyEnd_local
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
-        failedEnemyEnd = m.outside_range(s, (enemyEnd_abs)/s.attackLinesDimensions[1], "enemyEnd") or enemyEnd_abs >= s.attackLinesDimensions[1] - 1
+        print(f"EnemyEnd: {enemyEnd_abs}")
+        failedEnemyEnd = m.outside_range(s, (s.attackLinesDimensions[1] - enemyEnd_abs)/s.attackLinesDimensions[1], "enemyEnd") or enemyEnd_abs >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedEnemyEnd:
             if failedEnemyEnd and m.enemyEnd is not None:
                 enemyEnd_abs = m.enemyEnd.cut
@@ -278,6 +284,7 @@ def measure_percentage(s: currentState, threshold: float) -> None:
     
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"PercentageBegin: {percentageBegin}")
         failedPercentageBegin = m.outside_range(s, (percentageBegin)/s.attackLinesDimensions[1], "percentageBegin") or percentageBegin >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedPercentageBegin:
             if failedPercentageBegin and m.percentageBegin is not None:
@@ -299,6 +306,7 @@ def measure_percentage(s: currentState, threshold: float) -> None:
     
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
+        print(f"FirstStar: {firstStar}")
         failedFirstStar = m.outside_range(s, (firstStar)/s.attackLinesDimensions[1], "firstStar") or firstStar >= s.attackLinesDimensions[1] - 1
         if s.debug_name is not None and failedFirstStar:
             if failedFirstStar and m.firstStar is not None:
@@ -315,8 +323,10 @@ def measure_percentage(s: currentState, threshold: float) -> None:
                                               behavior=f"absolute threshold, minimum, by col, first rise, next, fall")
     
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None and s.debug_name is not None:
+        print(f"StarsBegin: {starsBegin}")
         failedstarsBegin = m.outside_range(s, starsBegin/s.attackLinesDimensions[1], "starsBegin") or starsBegin == 0
-        failedPercentageEnd = m.outside_range(s, (s.attackLinesDimensions[1] - percentageEnd)/s.attackLinesDimensions[1] - 1, "percentageEnd") or percentageEnd >= s.attackLinesDimensions[1] - 1
+        print(f"PercentageEnd: {percentageEnd}")
+        failedPercentageEnd = m.outside_range(s, (percentageEnd)/s.attackLinesDimensions[1], "percentageEnd") or percentageEnd >= s.attackLinesDimensions[1] - 1
         if (failedstarsBegin or failedPercentageEnd):
             if failedstarsBegin and m.starsBegin is not None:
                 starsBegin = m.starsBegin.cut
@@ -328,13 +338,14 @@ def measure_percentage(s: currentState, threshold: float) -> None:
 
             debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
                             {s.fileNum}_stars_begin_percentage_end_{s.debug_name[1]}", [firstStar - starsBegin, firstStar - percentageEnd], axis="col")
+    
     s.starsBegin = starsBegin
-    s.percentageEnd = percentageEnd
+    if s.attackLinesDimensions is not None:
+        s.percentageEnd = s.attackLinesDimensions[1] - percentageEnd
 
     percentageEnd = firstStar - percentageEnd
     starsBegin = firstStar - starsBegin
     # Length returned is the amount to subtract from the end of the percentage column 
-
     percentageCol = dataColumn(starsBegin - percentageBegin + enemyCenter)
     s.percentageCol = percentageCol
 
@@ -350,29 +361,34 @@ def measure_stars(s: currentState, col_al_local_min_TH: float, starsColEnd: int)
     if s.MEASUREMENT_FILE.exists() and s.attackLinesDimensions is not None and s.measurementPresets is not None:
         m = s.measurementPresets
         failedRealStarsEnd = m.outside_range(s, (realStarsEnd)/s.attackLinesDimensions[1], "realStarsEnd") or realStarsEnd >= s.attackLinesDimensions[1] - 1
+        print(f"RealStarsEnd: {realStarsEnd}")
         if s.debug_name is not None and failedRealStarsEnd:
             if failedRealStarsEnd and m.realStarsEnd is not None:
                 realStarsEnd = m.realStarsEnd.cut
                 print_to_gui(s, f"Error: Could not detect real stars end in image, Trying previous crop at {realStarsEnd}.")
                 debug_oscilloscope(s, s.attackLinesL.copy(), f"{s.debug_name[0].replace(' ', '_')}_\
                                 {s.fileNum}_real_stars_end_error_{s.debug_name[1]}", [starsColEnd - PX_MARGIN - realStarsEnd], axis="col")
-    s.realStarsEnd = realStarsEnd
+    if s.attackLinesDimensions is not None:
+        s.realStarsEnd = s.attackLinesDimensions[1] - realStarsEnd
 
     # Adjust realStarsEnd and width to be relative to the percentage column end
+    oldRealStarsEnd = realStarsEnd
     realStarsEnd = starsColEnd - PX_MARGIN - realStarsEnd
+    print(f"RealStarsEnd: {realStarsEnd} = starsColEnd {starsColEnd} - PX_MARGIN - realStarsEnd {oldRealStarsEnd}")
     starWidth = realStarsEnd - s.percentageCol.end
-
+    print(f"StarWidth: {starWidth} = realStarsEnd {realStarsEnd} - s.percentageCol.end {s.percentageCol.end}")
     # If no new third star in entire screenshot, realStarsEnd may be the wrong width
 
     # Two peaks in lightness per star, if less than 6, only a new second star in screenshot
     # if less than 3, then only a new first star in screenshot
-    peaks = count_peaks(s.attackLinesL[:, s.percentageCol.end:starsColEnd], s.presets.WHITE_TH)
-    # Adjust width to true width of stars based on measured width
-    if peaks >= 4 and peaks < 6:
-        starWidth = starWidth * (3/2)
-    elif peaks < 3:
-        starWidth = starWidth * 3
-
+    
+    # peaks = count_peaks(s.attackLinesL[:, s.percentageCol.end:starsColEnd], s.presets.WHITE_TH)
+    # # Adjust width to true width of stars based on measured width
+    # if peaks >= 4 and peaks < 6:
+    #     starWidth = starWidth * (3/2)
+    # elif peaks < 3:
+    # #     starWidth = starWidth * 3
+    # print(f"StarWidth: {starWidth}, Peaks: {peaks}")
     starsCol = dataColumn(starWidth)
     s.starsCol = starsCol
 

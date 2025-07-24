@@ -107,7 +107,7 @@ class imageMeasurements:
         lowRange = 2 - s.presets.errMarg
 
         expectedPct = getattr(self, expectedField).percentage
-        # print(f"Checking if {measuredPct} is outside range of {expectedPct} with low {expectedPct * lowRange} and high {expectedPct * highRange}")
+        print(f"Checking if {measuredPct} is outside range of {expectedPct} with low {expectedPct * lowRange} and high {expectedPct * highRange}")
         return not (expectedPct * lowRange <= measuredPct <= expectedPct * highRange)
 
 
