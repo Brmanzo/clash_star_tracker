@@ -72,12 +72,15 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
 
     # Convert to Lightness and sample minimum from image for threshold
     attackCrop = cv2.cvtColor(currAttack, cv2.COLOR_BGR2HLS)[:, :, 1]
+    attackCropW = attackCrop.shape[:2][1]
     text_menu_TH = sample_image(attackCrop, "max, absolute, minimum, by col",
                                 None, s.presets.text_menu_TH.repCharTol) * s.presets.text_menu_TH.filterScale
     # ------------------------------------------------- Enemy Rank Processing -------------------------------------------------
     # Record the division between enemy rank and name
     enemyRankBegin, enemyNameBegin = measure_image(attackCrop, text_menu_TH, 
                                                    behavior="absolute threshold, minimum, by col, first fall, next, rise")
+    
+
     if enemyRankBegin == 0 or enemyNameBegin == 0:
         print_to_gui(s, f"Error: Could not detect enemy rank or name begin at positions {enemyRankBegin}, \
               {enemyNameBegin} for absolute threshold minimum of {text_menu_TH}. Exiting.")
@@ -100,7 +103,12 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
         return(attackData(None, "No attack", "___"))
     else:
         # Pytesseract does its best to read the enemy rank
-        enemyRankCrop = attackPreproc[:, enemyRankBegin:enemyNameBegin]
+        print(f"attackCropW: {attackCropW}, enemyNameBegin: {enemyNameBegin}, enemyRankBegin: {enemyRankBegin}")
+        print(f"if {attackCropW} - {enemyNameBegin} < {enemyNameBegin} - {enemyRankBegin}")
+        if attackCropW - enemyNameBegin < enemyNameBegin - enemyRankBegin:
+             enemyRankCrop = attackPreproc[:, enemyNameBegin:]
+        else:
+            enemyRankCrop = attackPreproc[:, enemyRankBegin:enemyNameBegin]
         enemyRankTxt  = pytesseract.image_to_string(enemyRankCrop, config=s.RANK_CONFIG)
         enemy_rank = auto_correct_num(s,enemyRankTxt)
         if enemy_rank is None:
@@ -109,7 +117,10 @@ def process_attack(s: currentState, attackNum: int) -> attackData:
             debug_image(s, enemyRankCrop, "attack_rank_crop_error")
         # Pytesseract reads the enemy name
         # ------------------------------------------------- Enemy Name Processing -------------------------------------------------
-        enemyNameTxt = pytesseract.image_to_string(attackPreproc[:, enemyNameBegin:], config=s.PLAYER_CONFIG)
+        if attackCropW - enemyNameBegin < enemyNameBegin - enemyRankBegin:
+            enemyNameTxt = pytesseract.image_to_string(attackPreproc[:, enemyRankBegin:enemyNameBegin], config=s.PLAYER_CONFIG)
+        else:
+            enemyNameTxt = pytesseract.image_to_string(attackPreproc[:, enemyNameBegin:], config=s.PLAYER_CONFIG)
         enemy = auto_correct_player(s, enemyNameTxt, enemy=True, confidence_threshold=s.presets.ENEMIES_CONFIDENCE)
         if enemy_rank is None and enemy is not None:
             # If we couldn't read the enemy rank, but we have the name, assign it the cannonical rank
